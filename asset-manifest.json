@@ -1,0 +1,13 @@
+{
+  "files": {
+    "main.css": "/cartoon-eyes/static/css/main.ef1aa862.css",
+    "main.js": "/cartoon-eyes/static/js/main.ca39a782.js",
+    "index.html": "/cartoon-eyes/index.html",
+    "main.ef1aa862.css.map": "/cartoon-eyes/static/css/main.ef1aa862.css.map",
+    "main.ca39a782.js.map": "/cartoon-eyes/static/js/main.ca39a782.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.ef1aa862.css",
+    "static/js/main.ca39a782.js"
+  ]
+}
