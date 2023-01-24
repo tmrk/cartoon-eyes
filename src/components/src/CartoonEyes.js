@@ -12,7 +12,7 @@ export const Eye = (props) => {
     scleraHeight = 100,
     scleraColor = '#ffffff',
     scleraStyle = {},
-    lensPosition = [70, 70],
+    lensPosition = [0, 0],
     irisSize = 60,
     irisWidth = irisSize,
     irisHeight = irisSize,
@@ -58,12 +58,14 @@ export const Eye = (props) => {
   const lensX = (scleraRadiusX - irisRadiusX) / 100 * lensPosition[0];
   const lensY = (scleraRadiusY - irisRadiusY) / 100 * lensPosition[1];
 
+  const blinkingSpeed = (typeof blinking == 'number') ? blinking : 3;
+
   const ts = new Date().getTime(); // this is to avoid repeated element IDs if more than one SVG are loaded on the same page
 
   return (
     <svg width={width} height={height} 
       className={`cartoon-eye ${blinking ? 'blinking' : ''}`} 
-      style={blinking ? {'--blinking-speed': blinking + 's' } : {}}
+      style={blinking ? {'--blinking-speed': blinkingSpeed + 's' } : {}}
       xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'>
       <defs>
         <mask id={'mask-sclera-' + ts}>
