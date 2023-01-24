@@ -1,0 +1,30 @@
+{
+  "name": "cartoon-eyes",
+  "version": "1.0.0",
+  "description": "A React component that exports a customisable cartoon eye as inline SVG code",
+  "keywords": [
+    "react",
+    "component",
+    "cartoon",
+    "eye",
+    "svg"
+  ],
+  "main": "CartoonEyes.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tmrk/cartoon-eyes.git"
+  },
+  "author": "Tamas Marki",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/tmrk/cartoon-eyes/issues"
+  },
+  "homepage": "https://github.com/tmrk/cartoon-eyes#readme",
+  "peerDependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  }
+}
