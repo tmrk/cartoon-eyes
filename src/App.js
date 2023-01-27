@@ -3,6 +3,7 @@ import Grid from '@mui/material/Unstable_Grid2';
 import { CssBaseline, Container, List, ListItem, Paper, ButtonGroup, Button, Typography, Box } from '@mui/material';
 import { useState } from 'react';
 import { Eye } from './components/src/CartoonEyes'
+//import { Eye } from './components/dist/CartoonEyes'
 import { InputSlider } from './InputSlider';
 import { MuiColorInput } from 'mui-color-input'
 
@@ -21,7 +22,8 @@ function App() {
     irisColor: '#0000ff',
     pupilColor: '#000000',
     upperLidColor: '#aaaaaa',
-    lowerLidColor: '#aaaaaa'
+    lowerLidColor: '#aaaaaa',
+    lensPosition: [0, 0]
   };
 
   const [upperLidSize, setUpperLidSize] = useState(original.upperLidSize);
@@ -92,7 +94,10 @@ function App() {
               pupilColor={pupilColor}
               upperLidColor={upperLidColor}
               lowerLidColor={lowerLidColor}
-              blinking={true} 
+              lensPosition={[0, 0]}
+              lensMovement={true}
+              blinking={true}
+              blinkSpeed = {80}
             />
           </Grid>
           <Grid container justifyContent={'center'} alignItems={'center'} display={'flex'} flex={1} flexDirection={'column'} gap={2}>

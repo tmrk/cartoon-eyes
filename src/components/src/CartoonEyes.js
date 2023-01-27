@@ -1,5 +1,4 @@
-import React from 'react';
-import './CartoonEyesAnimations.css';
+import React, { useState, useEffect } from 'react';
 
 export const Eye = (props) => {
 
@@ -31,8 +30,50 @@ export const Eye = (props) => {
     lowerLidSize = lidSize,
     lowerLidColor = lidColor,
     lowerLidStyle = {},
-    blinking = false
+    blinking = false,
+    blinkSqueeze = false, // buggy!
+    blinkSpeed = (typeof blinking == 'number') ? blinking : 80,
+    blinkFrequency = 3000,
+    lensMovement = false
   } = props;
+
+  const randomNumber = (min, max) => Math.floor(Math.random() * (max - min + 1) ) + min;
+  const [updatedLensPosition, setUpdatedLensPosition] = useState(lensPosition);
+
+  useEffect(() => {
+    function randomLensPostion() {
+      setUpdatedLensPosition([ randomNumber(-90, 90), randomNumber(-90, 90) ]);
+      setTimeout(() => randomLensPostion(), 1000);
+    }
+    if (lensMovement) randomLensPostion();
+  }, [lensMovement]);
+
+  const [updatedUpperLidSize, setUpdatedUpperLidSize] = useState(upperLidSize);
+  const [updatedLowerLidSize, setUpdatedLowerLidSize] = useState(lowerLidSize);
+  const [scleraScaleY, setScleraScaleY] = useState(1);
+
+  useEffect(() => {
+    setUpdatedUpperLidSize(upperLidSize);
+    setUpdatedLowerLidSize(lowerLidSize);
+    if (blinkSqueeze) setScleraScaleY(1);
+
+    // create blinking animation with setInterval (& CSS transition)
+    if (blinking) {
+      const doBlink = () => {
+        setUpdatedUpperLidSize(100);
+        setUpdatedLowerLidSize(100);
+        if (blinkSqueeze) setScleraScaleY(0.5);
+        setTimeout(function () {
+          setUpdatedUpperLidSize(upperLidSize);
+          setUpdatedLowerLidSize(lowerLidSize);
+          if (blinkSqueeze) setScleraScaleY(1);
+        }, blinkSpeed);
+      }
+      doBlink(); // immediately do just one blink
+      const intervalBlinking = setInterval(doBlink, blinkFrequency); // set up repeated blinks
+      return () => clearInterval(intervalBlinking);
+    }
+  }, [upperLidSize, lowerLidSize, blinking, blinkFrequency, blinkSpeed, blinkSqueeze]);
 
   // calculate actual radius in pixels from percentage (50px is half of the viewbox)
   const scleraRadiusX = 50 / 100 * scleraWidth;
@@ -50,45 +91,47 @@ export const Eye = (props) => {
                       Math.min(irisRadiusX, irisRadiusY) / 100 * pupilHeight : 
                       irisRadiusY / 100 * pupilHeight;
 
-  const upperLidHeight = scleraRadiusY / 100 * upperLidSize;
+  const upperLidHeight = scleraRadiusY / 100 * updatedUpperLidSize;
   const upperLidY = 50 - scleraRadiusY - scleraRadiusY + upperLidHeight;
-  const lowerLidY = 50 + scleraRadiusY - (scleraRadiusY / 100 * lowerLidSize);
+  const lowerLidY = 50 + scleraRadiusY - (scleraRadiusY / 100 * updatedLowerLidSize);
   
   // calculate real lens position from percentage
-  const lensX = (scleraRadiusX - irisRadiusX) / 100 * lensPosition[0];
-  const lensY = (scleraRadiusY - irisRadiusY) / 100 * lensPosition[1];
-
-  const blinkingSpeed = (typeof blinking == 'number') ? blinking : 3;
+  const lensX = (scleraRadiusX - irisRadiusX) / 100 * updatedLensPosition[0];
+  const lensY = (scleraRadiusY - irisRadiusY) / 100 * updatedLensPosition[1];
 
   const ts = new Date().getTime(); // this is to avoid repeated element IDs if more than one SVG are loaded on the same page
 
   return (
-    <svg width={width} height={height} 
-      className={`cartoon-eye ${blinking ? 'blinking' : ''}`} 
-      style={blinking ? {'--blinking-speed': blinkingSpeed + 's' } : {}}
-      xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'>
+    <svg width={width} height={height} viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg' 
+      className='cartoon-eye' preserveAspectRatio='none'>
       <defs>
-        <mask id={'mask-sclera-' + ts}>
-          <ellipse id={'sclera-' + ts} className='sclera' fill={scleraColor} cx='50' cy='50' rx={scleraRadiusX} ry={scleraRadiusY} style={scleraStyle} />
+        <mask id={'mask-sclera-' + ts}
+          style={{
+            transform: 'scaleY(' + scleraScaleY + ')', 
+            transformOrigin: 'center',
+            transition: 'transform ' + blinkSpeed + 'ms ease-in'
+          }}
+        >
+          <ellipse id={'sclera-' + ts} className='sclera' fill={scleraColor} 
+            cx='50' cy='50' rx={scleraRadiusX} ry={scleraRadiusY} 
+            style={{...scleraStyle, ...{
+              transform: 'scaleY(' + scleraScaleY + ')', 
+              transformOrigin: 'center',
+              transition: 'transform ' + blinkSpeed + 'ms ease-in'
+            }}} />
         </mask>
       </defs>
       <use href={'#sclera-' + ts} className='sclera' />
-      <g className='lens' mask={'url(#mask-sclera-'+ ts +')'} style={{'--lens-X': lensX + '%', '--lens-Y': lensY + '%'}}>
-        <g transform={'translate(' + lensX + ',' + lensY + ')'}>
+      <g className='lens' mask={'url(#mask-sclera-'+ ts +')'}>
+        <g style={{ transform: 'translate(' + lensX + 'px,' + lensY + 'px)', transition: 'all 0.5s ease' }}>
           <ellipse className='iris' fill={irisColor} rx={irisRadiusX} ry={irisRadiusY} transform='translate(50, 50)' style={irisStyle} />
           <ellipse className='pupil' fill={pupilColor} rx={pupilRadiusX} ry={pupilRadiusY} transform='translate(50, 50)' style={pupilStyle} />
         </g>
       </g>
-      {(upperLidSize || lowerLidSize) ?
-        <g className='eyelids' mask={'url(#mask-sclera-'+ ts +')'}>
-          {upperLidSize ?
-            <rect className='upper-lid' fill={upperLidColor} width='100%' height={scleraRadiusY} y={upperLidY} style={{...upperLidStyle, ...{'--upper-lid-Y': upperLidY + '%', '--sclera-radius-Y': scleraRadiusY + '%', '--upper-lid-height': upperLidHeight + '%'}}} />
-          : ''}
-          {lowerLidSize ?
-            <rect className='lower-lid' fill={lowerLidColor} width='100%' height={scleraRadiusY} y={lowerLidY} style={{...lowerLidStyle, ...{'--lower-lid-open': lowerLidY + '%'}}} />
-          : ''}
-        </g>
-      : ''}
+      <g className='eyelids' mask={'url(#mask-sclera-'+ ts +')'}>
+        <rect className='upper-lid' fill={upperLidColor} width='100%' height={scleraRadiusY} y={upperLidY} style={{...upperLidStyle, ...{transition: 'all '+ blinkSpeed +'ms ease-in'}}} />
+        <rect className='lower-lid' fill={lowerLidColor} width='100%' height={scleraRadiusY} y={lowerLidY} style={{...lowerLidStyle, ...{transition: 'all '+ blinkSpeed +'ms ease-in'}}}/>
+      </g>
     </svg>
   );
 }
