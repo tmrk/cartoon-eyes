@@ -41,7 +41,7 @@ stays inside an elliptical parent.
 
 | Prop | Type | Default | Description |
 | --- | --- | --- | --- |
-| `size` | number \| string | – | Sets both `width` and `height` of the SVG |
+| `size` | number \| string | - | Sets both `width` and `height` of the SVG |
 | `width`, `height` | number \| string | `size` | Rendered SVG dimensions |
 | `scleraWidth` | number | `100` | Eye outline width, % of the drawing area |
 | `scleraHeight` | number | `100` | Eye outline height, % of the drawing area |
@@ -63,13 +63,13 @@ stays inside an elliptical parent.
 | `blinkSpeed` | number | `80` | How long a blink lasts, ms |
 | `blinkFrequency` | number | `3000` | Time between blinks, ms |
 | `blinkSqueeze` | boolean | `false` | Squash the whole eye vertically while blinking |
-| `title` | string | – | Accessible name (rendered as an SVG `<title>`) |
-| `className`, `style` | – | – | Passed through to the `<svg>` element |
+| `title` | string | - | Accessible name (rendered as an SVG `<title>`) |
+| `className`, `style` | - | - | Passed through to the `<svg>` element |
 | `scleraStyle`, `irisStyle`, `pupilStyle`, `upperLidStyle`, `lowerLidStyle` | object | `{}` | Inline styles for the individual shapes |
 
 ### Making the eye look somewhere
 
-`lensPosition` is fully controlled, so you can point the eye anywhere — for example at the
+`lensPosition` is fully controlled, so you can point the eye anywhere, for example at the
 mouse cursor:
 
 ```jsx

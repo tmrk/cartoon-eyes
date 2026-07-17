@@ -9,7 +9,7 @@ import { MuiColorInput } from 'mui-color-input';
 import { Eye } from './components/src/CartoonEyes';
 
 // ---------------------------------------------------------------------------
-// Theme: warm "sticker sheet" look — thick ink outlines, offset shadows,
+// Theme: warm "sticker sheet" look: thick ink outlines, offset shadows,
 // halftone dots, rounded toy-like type.
 // ---------------------------------------------------------------------------
 
@@ -151,7 +151,7 @@ const presets = {
   },
 };
 
-// the Eye component's own defaults — used to emit only non-default props
+// the Eye component's own defaults, used to emit only non-default props
 const eyeDefaults = {
   scleraWidth: 100, scleraHeight: 100, scleraColor: '#ffffff',
   irisSize: 60, irisColor: '#666666',
@@ -391,7 +391,7 @@ function App() {
               <Box component='span' sx={{ color: CORAL }}>.</Box>
             </Typography>
             <Typography color='text.secondary' sx={{ mt: 0.5, fontWeight: 600 }}>
-              A tiny React component for expressive, blinking SVG eyes — try "Follow cursor" and they'll watch you.
+              A tiny React component for expressive, blinking SVG eyes. Try "Follow cursor" and they'll watch you.
             </Typography>
           </Box>
           <Stack direction='row' spacing={1.5} sx={{ alignItems: 'center' }}>

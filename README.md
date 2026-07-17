@@ -1,6 +1,6 @@
 # Cartoon Eyes for React
 
-A React component that renders a customisable, animated cartoon eye as inline SVG —
+A React component that renders a customisable, animated cartoon eye as inline SVG,
 plus the interactive playground that demos it.
 
 ### 👉 [Live playground](https://tmrk.github.io/cartoon-eyes/)
@@ -32,8 +32,8 @@ Full documentation lives in the [package README](src/components/README.md).
 
 ## Repository layout
 
-- **Root** — the playground app (React + Vite + MUI), deployed to GitHub Pages.
-- **[`src/components/`](src/components)** — the `cartoon-eyes` npm package itself.
+- **Root**: the playground app (React + Vite + MUI), deployed to GitHub Pages.
+- **[`src/components/`](src/components)**: the `cartoon-eyes` npm package itself.
 
 ## Development
 
