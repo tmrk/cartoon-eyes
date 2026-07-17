@@ -1,24 +1,38 @@
 {
   "name": "cartoon-eyes",
-  "version": "1.0.5",
-  "description": "A React component that exports a customisable cartoon eye as inline SVG code",
+  "version": "2.0.0",
+  "description": "A React component that renders a customisable, animated cartoon eye as inline SVG",
   "private": false,
-  "babel": {
-    "presets": [
-      "@babel/preset-react"
-    ]
+  "type": "module",
+  "main": "./dist/CartoonEyes.js",
+  "types": "./src/CartoonEyes.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/CartoonEyes.d.ts",
+      "default": "./dist/CartoonEyes.js"
+    }
   },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "sideEffects": false,
   "keywords": [
     "react",
     "component",
     "cartoon",
     "eye",
-    "svg"
+    "eyes",
+    "svg",
+    "animation",
+    "googly"
   ],
-  "main": "./dist/CartoonEyes",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "publish:npm": "del /q dist && babel src --out-dir dist --copy-files"
+    "build": "esbuild src/CartoonEyes.jsx --jsx=automatic --format=esm --outfile=dist/CartoonEyes.js",
+    "prepublishOnly": "npm run build"
+  },
+  "peerDependencies": {
+    "react": ">=18"
   },
   "repository": {
     "type": "git",
@@ -29,12 +43,8 @@
   "bugs": {
     "url": "https://github.com/tmrk/cartoon-eyes/issues"
   },
-  "homepage": "https://github.com/tmrk/cartoon-eyes#readme",
+  "homepage": "https://tmrk.github.io/cartoon-eyes/",
   "devDependencies": {
-    "@babel/cli": "^7.20.7",
-    "@babel/core": "^7.20.12",
-    "@babel/polyfill": "^7.12.1",
-    "@babel/preset-env": "^7.20.2",
-    "@babel/preset-react": "^7.18.6"
+    "esbuild": "^0.28.1"
   }
 }
