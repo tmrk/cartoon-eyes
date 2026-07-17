@@ -99,8 +99,10 @@ const initialConfig = {
   upperLidSize: 20, upperLidColor: '#aaaaaa',
   lowerLidSize: 20, lowerLidColor: '#aaaaaa',
   blinking: true, blinkSpeed: 80, blinkFrequency: 3000, blinkSqueeze: false,
-  movement: 'follow', // demo-only: 'follow' | 'wander' | 'still'
+  movement: 'wander', // demo-only: 'follow' | 'wander' | 'still'
 };
+
+const randomNumber = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 
 const presets = {
   Default: initialConfig,
@@ -209,15 +211,18 @@ function buildCodeProps(config) {
 // Small building blocks
 // ---------------------------------------------------------------------------
 
-const ControlSlider = ({ label, value, onChange, min = 0, max = 100, step = 1, unit = '' }) => (
+const ControlSlider = ({ label, value, onChange, min = 0, max = 100, step = 1, unit = '', disabled = false }) => (
   <Box>
     <Stack direction='row' sx={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
-      <Typography variant='body2' sx={{ fontWeight: 700 }}>{label}</Typography>
-      <Typography variant='body2' color='text.secondary' sx={{ fontFamily: "'Fira Code', monospace" }}>
+      <Typography variant='body2' sx={{ fontWeight: 700, color: disabled ? 'text.disabled' : 'text.primary' }}>
+        {label}
+      </Typography>
+      <Typography variant='body2'
+        sx={{ fontFamily: "'Fira Code', monospace", color: disabled ? 'text.disabled' : 'text.secondary' }}>
         {value}{unit}
       </Typography>
     </Stack>
-    <Slider size='small' value={value} min={min} max={max} step={step}
+    <Slider size='small' value={value} min={min} max={max} step={step} disabled={disabled}
       onChange={(e, v) => onChange(v)} aria-label={label} />
   </Box>
 );
@@ -230,10 +235,12 @@ const ColorControl = ({ label, value, onChange }) => (
   </Box>
 );
 
-const SwitchControl = ({ label, checked, onChange }) => (
+const SwitchControl = ({ label, checked, onChange, disabled = false }) => (
   <Stack direction='row' sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
-    <Typography variant='body2' sx={{ fontWeight: 700 }}>{label}</Typography>
-    <Switch checked={checked} onChange={(e) => onChange(e.target.checked)} />
+    <Typography variant='body2' sx={{ fontWeight: 700, color: disabled ? 'text.disabled' : 'text.primary' }}>
+      {label}
+    </Typography>
+    <Switch checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
   </Stack>
 );
 
@@ -288,6 +295,17 @@ const eyeProps = (config, lensPosition) => ({
 function App() {
   const [config, setConfig] = useState(initialConfig);
   const set = (key) => (value) => setConfig((c) => ({ ...c, [key]: value }));
+  const [eyeCount, setEyeCount] = useState(2); // demo-only, not an Eye prop
+
+  // wander: one shared random target so all eyes look the same way in sync
+  const [wanderLens, setWanderLens] = useState([0, 0]);
+  useEffect(() => {
+    if (config.movement !== 'wander') return;
+    const intervalId = setInterval(() => {
+      setWanderLens([randomNumber(-90, 90), randomNumber(-90, 90)]);
+    }, 1000);
+    return () => clearInterval(intervalId);
+  }, [config.movement]);
 
   // follow-the-cursor: mousemove only records a target; a damped rAF loop eases
   // the lens towards it, so motion stays smooth regardless of event rate
@@ -323,11 +341,15 @@ function App() {
     };
   }, [config.movement]);
 
-  const lensPosition = config.movement === 'follow' ? followLens : [0, 0];
+  const lensPosition =
+    config.movement === 'follow' ? followLens :
+    config.movement === 'wander' ? wanderLens : [0, 0];
   const heroEye = {
     ...eyeProps(config, lensPosition),
+    // the demo drives all movement itself (so multiple eyes stay in sync);
     // in follow mode the rAF loop already eases, so the CSS transition is disabled
-    lensSpeed: config.movement === 'follow' ? 0 : 500,
+    lensMovement: false,
+    lensSpeed: config.movement === 'follow' ? 0 : 600,
     width: '100%',
     height: '100%',
   };
@@ -369,7 +391,7 @@ function App() {
               <Box component='span' sx={{ color: CORAL }}>.</Box>
             </Typography>
             <Typography color='text.secondary' sx={{ mt: 0.5, fontWeight: 600 }}>
-              A tiny React component for expressive, blinking SVG eyes — they're watching your cursor.
+              A tiny React component for expressive, blinking SVG eyes — try "Follow cursor" and they'll watch you.
             </Typography>
           </Box>
           <Stack direction='row' spacing={1.5} sx={{ alignItems: 'center' }}>
@@ -397,11 +419,13 @@ function App() {
             display: 'flex', justifyContent: 'center', gap: { xs: 2, md: 4 },
             py: { xs: 1, md: 2 },
           }}>
-            {[0, 1].map((i) => (
+            {Array.from({ length: eyeCount }, (_, i) => (
               <Box key={i} sx={{
                 width: 'clamp(130px, 30vw, 280px)', aspectRatio: '4 / 3',
               }}>
-                <Eye {...heroEye} title={i === 0 ? 'left cartoon eye' : 'right cartoon eye'} />
+                <Eye {...heroEye} title={
+                  eyeCount === 1 ? 'cartoon eye' : (i === 0 ? 'left cartoon eye' : 'right cartoon eye')
+                } />
               </Box>
             ))}
           </Box>
@@ -459,20 +483,29 @@ function App() {
           <Card title='Behaviour' sx={{ animationDelay: '260ms' }}>
             <Stack spacing={2}>
               <Box>
+                <Typography variant='body2' gutterBottom sx={{ fontWeight: 700 }}>Eyes</Typography>
+                <ToggleButtonGroup exclusive fullWidth size='small' value={eyeCount}
+                  onChange={(e, v) => v && setEyeCount(v)}>
+                  <ToggleButton value={1}>One</ToggleButton>
+                  <ToggleButton value={2}>Two</ToggleButton>
+                </ToggleButtonGroup>
+              </Box>
+              <Box>
                 <Typography variant='body2' gutterBottom sx={{ fontWeight: 700 }}>Eye movement</Typography>
                 <ToggleButtonGroup exclusive fullWidth size='small' value={config.movement}
                   onChange={(e, v) => v && set('movement')(v)}>
-                  <ToggleButton value='follow'>Follow cursor</ToggleButton>
                   <ToggleButton value='wander'>Wander</ToggleButton>
+                  <ToggleButton value='follow'>Follow cursor</ToggleButton>
                   <ToggleButton value='still'>Still</ToggleButton>
                 </ToggleButtonGroup>
               </Box>
               <SwitchControl label='Blinking' checked={config.blinking} onChange={set('blinking')} />
-              <SwitchControl label='Blink squeeze' checked={config.blinkSqueeze} onChange={set('blinkSqueeze')} />
+              <SwitchControl label='Blink squeeze' checked={config.blinkSqueeze} onChange={set('blinkSqueeze')}
+                disabled={!config.blinking} />
               <ControlSlider label='Blink speed' value={config.blinkSpeed} onChange={set('blinkSpeed')}
-                min={30} max={400} step={10} unit=' ms' />
+                min={30} max={400} step={10} unit=' ms' disabled={!config.blinking} />
               <ControlSlider label='Blink every' value={config.blinkFrequency} onChange={set('blinkFrequency')}
-                min={500} max={8000} step={100} unit=' ms' />
+                min={500} max={8000} step={100} unit=' ms' disabled={!config.blinking} />
             </Stack>
           </Card>
         </Box>
