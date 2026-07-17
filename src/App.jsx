@@ -289,28 +289,45 @@ function App() {
   const [config, setConfig] = useState(initialConfig);
   const set = (key) => (value) => setConfig((c) => ({ ...c, [key]: value }));
 
-  // follow-the-cursor: convert mouse position into a lensPosition percentage
+  // follow-the-cursor: mousemove only records a target; a damped rAF loop eases
+  // the lens towards it, so motion stays smooth regardless of event rate
   const eyesRef = useRef(null);
   const [followLens, setFollowLens] = useState([0, 0]);
   useEffect(() => {
     if (config.movement !== 'follow') return;
+    const target = { x: 0, y: 0 };
     const onMove = (e) => {
       const box = eyesRef.current?.getBoundingClientRect();
       if (!box) return;
       const cx = box.left + box.width / 2;
       const cy = box.top + box.height / 2;
-      const x = Math.max(-90, Math.min(90, ((e.clientX - cx) / (window.innerWidth / 2)) * 140));
-      const y = Math.max(-90, Math.min(90, ((e.clientY - cy) / (window.innerHeight / 2)) * 140));
-      setFollowLens([Math.round(x), Math.round(y)]);
+      target.x = Math.max(-90, Math.min(90, ((e.clientX - cx) / (window.innerWidth / 2)) * 140));
+      target.y = Math.max(-90, Math.min(90, ((e.clientY - cy) / (window.innerHeight / 2)) * 140));
     };
+    let raf;
+    const tick = () => {
+      setFollowLens((prev) => {
+        const [px, py] = prev;
+        const dx = target.x - px;
+        const dy = target.y - py;
+        if (Math.abs(dx) < 0.05 && Math.abs(dy) < 0.05) return prev; // settled: skip re-render
+        return [px + dx * 0.14, py + dy * 0.14];
+      });
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
     window.addEventListener('mousemove', onMove);
-    return () => window.removeEventListener('mousemove', onMove);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('mousemove', onMove);
+    };
   }, [config.movement]);
 
   const lensPosition = config.movement === 'follow' ? followLens : [0, 0];
   const heroEye = {
     ...eyeProps(config, lensPosition),
-    lensSpeed: config.movement === 'follow' ? 120 : 500,
+    // in follow mode the rAF loop already eases, so the CSS transition is disabled
+    lensSpeed: config.movement === 'follow' ? 0 : 500,
     width: '100%',
     height: '100%',
   };

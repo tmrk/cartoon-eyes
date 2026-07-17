@@ -120,7 +120,10 @@ export const Eye = (props) => {
   const lensOffsetX = (scleraRadiusX - irisRadiusX) / 100 * updatedLensPosition[0];
   const lensOffsetY = (scleraRadiusY - irisRadiusY) / 100 * updatedLensPosition[1];
 
-  const lidTransition = { transition: 'y ' + blinkSpeed + 'ms ease-in' };
+  // smooth deceleration for lens moves, symmetric ease for lids
+  const lensEasing = 'cubic-bezier(0.22, 1, 0.36, 1)';
+  const lidEasing = 'cubic-bezier(0.4, 0, 0.2, 1)';
+  const lidTransition = { transition: 'y ' + blinkSpeed + 'ms ' + lidEasing };
 
   return (
     <svg width={width} height={height} viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'
@@ -136,14 +139,14 @@ export const Eye = (props) => {
       <g className='eye' style={{
         transform: 'scaleY(' + scleraScaleY + ')',
         transformOrigin: 'center',
-        transition: 'transform ' + blinkSpeed + 'ms ease-in',
+        transition: 'transform ' + blinkSpeed + 'ms ' + lidEasing,
       }}>
         <ellipse className='sclera' fill={scleraColor}
           cx='50' cy='50' rx={scleraRadiusX} ry={scleraRadiusY} style={scleraStyle} />
         <g className='lens' mask={'url(#' + maskId + ')'}>
           <g style={{
             transform: 'translate(' + lensOffsetX + 'px,' + lensOffsetY + 'px)',
-            transition: 'transform ' + lensSpeed + 'ms ease',
+            transition: 'transform ' + lensSpeed + 'ms ' + lensEasing,
           }}>
             <ellipse className='iris' fill={irisColor} rx={irisRadiusX} ry={irisRadiusY}
               transform='translate(50, 50)' style={irisStyle} />
