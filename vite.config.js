@@ -5,6 +5,12 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   base: '/cartoon-eyes/',
+  resolve: {
+    // src/components has its own node_modules (react gets auto-installed there as a
+    // peer dep); without dedupe the production bundle ships two React copies and
+    // crashes with a null hook dispatcher
+    dedupe: ['react', 'react-dom'],
+  },
   server: {
     port: 3000,
   },
