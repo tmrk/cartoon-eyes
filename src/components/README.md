@@ -7,7 +7,7 @@ towards any controlled position.
 ![Two cartoon eyes blinking and glancing around](https://raw.githubusercontent.com/tmrk/cartoon-eyes/master/docs/demo.svg)
 
 [![npm version](https://img.shields.io/npm/v/cartoon-eyes)](https://www.npmjs.com/package/cartoon-eyes)
-[![bundle size](https://img.shields.io/bundlephobia/minzip/cartoon-eyes)](https://bundlephobia.com/package/cartoon-eyes)
+[![package size](https://img.shields.io/npm/unpacked-size/cartoon-eyes?label=size)](https://bundlephobia.com/package/cartoon-eyes)
 [![licence](https://img.shields.io/npm/l/cartoon-eyes)](https://github.com/tmrk/cartoon-eyes/blob/master/LICENSE)
 
 ### 👉 [Try the live playground](https://tmrk.github.io/cartoon-eyes/)

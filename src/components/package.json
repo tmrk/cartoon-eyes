@@ -1,6 +1,6 @@
 {
   "name": "cartoon-eyes",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "Dependency-free React component for customisable animated SVG cartoon eyes: blinking, random wandering and controlled cursor-following movement",
   "private": false,
   "type": "module",
