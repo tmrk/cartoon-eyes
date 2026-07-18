@@ -605,13 +605,18 @@ function App() {
                 one day and would not let go, so I kept coding away at it until I managed to
                 code it to completion.
               </Typography>
-              <Typography variant='body2'>
+              <Typography variant='body2' sx={{ mb: 1.5 }}>
                 It turned out to be a brilliant exercise, too. Getting the geometry right
                 forced my brain to do far more maths than everyday UI work ever does, and
                 working the formulas out properly was the only way to wrap my head around
                 some of it and make the SVG code accurate. It taught me a lot. Which, of
                 course, became slightly obsolete not long after, when the AI coding
                 assistants arrived!
+              </Typography>
+              <Typography variant='body2'>
+                Speaking of which: V2 was done with the help of Claude — though mostly
+                the cosmetics of this demo and the documentation I never got around to
+                writing. The underlying eye code remains proudly mine.
               </Typography>
             </Paper>
             <Paper sx={{ p: 3, bgcolor: '#FFE8CF' }}>
