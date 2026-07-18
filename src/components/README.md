@@ -1,17 +1,29 @@
 # Cartoon Eyes for React
 
-A tiny React component that renders a customisable, animated cartoon eye as inline SVG.
-No dependencies, ~7 kB, TypeScript types included.
+A tiny, dependency-free React component for rendering customisable animated cartoon
+eyes as inline SVG. Make them blink, wander randomly, follow the mouse cursor or look
+towards any controlled position.
 
-### 👉 [Live playground](https://tmrk.github.io/cartoon-eyes/)
+![Two cartoon eyes blinking and glancing around](https://raw.githubusercontent.com/tmrk/cartoon-eyes/master/docs/demo.svg)
+
+[![npm version](https://img.shields.io/npm/v/cartoon-eyes)](https://www.npmjs.com/package/cartoon-eyes)
+[![bundle size](https://img.shields.io/bundlephobia/minzip/cartoon-eyes)](https://bundlephobia.com/package/cartoon-eyes)
+[![licence](https://img.shields.io/npm/l/cartoon-eyes)](https://github.com/tmrk/cartoon-eyes/blob/master/LICENSE)
+
+### 👉 [Try the live playground](https://tmrk.github.io/cartoon-eyes/)
+
+Design an eye visually — shape, colours, eyelids, pupils, blinking, movement — and copy
+the matching React code.
 
 ## Installation
 
-```
+```bash
 npm install cartoon-eyes
 ```
 
-## Example usage
+No runtime dependencies. Ships as ESM with TypeScript declarations included.
+
+## Quick start
 
 ```jsx
 import { Eye } from 'cartoon-eyes';
@@ -19,6 +31,7 @@ import { Eye } from 'cartoon-eyes';
 function App() {
   return (
     <Eye
+      size={120}
       irisColor='#3E7BFA'
       scleraWidth={80}
       scleraHeight={55}
@@ -32,10 +45,22 @@ function App() {
 export default App;
 ```
 
-All geometry props are **percentages relative to their parent shape**: the sclera is sized
-against the drawing area, the iris against the sclera, and the pupil against the iris. A
-circular iris or pupil is fitted against the smaller of its parent's radii, so it always
-stays inside an elliptical parent.
+## Use cases
+
+- Animated website mascots and playful landing pages
+- Eyes that follow the mouse (googly-eye / xeyes effects)
+- Avatars, character creators and profile cards
+- Children's and educational interfaces
+- Games and interactive stories
+- Loading states, empty states and Easter eggs
+- Eyes attached to logos or illustrations
+
+## How sizing works
+
+All geometry props are **percentages relative to their parent shape**: the sclera is
+sized against the drawing area, the iris against the sclera, and the pupil against the
+iris. A circular iris or pupil is fitted against the smaller of its parent's radii, so
+it always stays inside an elliptical parent.
 
 The drawing area is square and the eye always keeps its proportions: equal
 `scleraWidth` and `scleraHeight` render a perfect circle. If `width` and `height`
@@ -71,25 +96,150 @@ differ, the drawing is scaled to fit and centred rather than stretched.
 | `className`, `style` | - | - | Passed through to the `<svg>` element |
 | `scleraStyle`, `irisStyle`, `pupilStyle`, `upperLidStyle`, `lowerLidStyle` | object | `{}` | Inline styles for the individual shapes |
 
-### Making the eye look somewhere
+## Recipes
 
-`lensPosition` is fully controlled, so you can point the eye anywhere, for example at the
-mouse cursor:
+### A single blinking eye
 
 ```jsx
-const [lens, setLens] = useState([0, 0]);
-
-useEffect(() => {
-  const onMove = (e) => setLens([
-    (e.clientX / window.innerWidth) * 200 - 100,
-    (e.clientY / window.innerHeight) * 200 - 100,
-  ]);
-  window.addEventListener('mousemove', onMove);
-  return () => window.removeEventListener('mousemove', onMove);
-}, []);
-
-<Eye lensPosition={lens} lensSpeed={120} />
+<Eye size={100} blinking />
 ```
+
+### A pair of eyes
+
+Render two eyes with the same props; their timers run independently, which looks
+natural. Share the config in one object:
+
+```jsx
+const eye = {
+  size: 90,
+  scleraWidth: 70,
+  scleraHeight: 50,
+  irisColor: '#3E7BFA',
+  irisSize: 80,
+  pupilSize: 30,
+  blinking: true,
+};
+
+<div style={{ display: 'flex', gap: 8 }}>
+  <Eye {...eye} />
+  <Eye {...eye} />
+</div>
+```
+
+### Eyes that follow the mouse cursor
+
+`lensPosition` is fully controlled, so map the pointer position to the −100..100 range
+and both eyes will track it:
+
+```jsx
+import { useEffect, useState } from 'react';
+import { Eye } from 'cartoon-eyes';
+
+function FollowingEyes() {
+  const [lens, setLens] = useState([0, 0]);
+
+  useEffect(() => {
+    const onMove = (e) => setLens([
+      (e.clientX / window.innerWidth) * 200 - 100,
+      (e.clientY / window.innerHeight) * 200 - 100,
+    ]);
+    window.addEventListener('mousemove', onMove);
+    return () => window.removeEventListener('mousemove', onMove);
+  }, []);
+
+  return (
+    <div style={{ display: 'flex', gap: 8 }}>
+      <Eye size={90} lensPosition={lens} lensSpeed={120} blinking />
+      <Eye size={90} lensPosition={lens} lensSpeed={120} blinking />
+    </div>
+  );
+}
+```
+
+### Randomly wandering eyes
+
+```jsx
+<Eye size={100} lensMovement blinking />        {/* new position every second */}
+<Eye size={100} lensMovement={2500} blinking /> {/* every 2.5 s */}
+```
+
+### Cat-style pupils
+
+A tall, narrow pupil against a round amber iris:
+
+```jsx
+<Eye
+  size={100}
+  scleraWidth={72} scleraHeight={66} scleraColor='#f6edd2'
+  irisSize={95} irisColor='#E8A33D'
+  pupilWidth={14} pupilHeight={90} pupilColor='#1c1c1c'
+  upperLidSize={12} lowerLidSize={8} lidColor='#8a6d3b'
+  blinking blinkFrequency={5000}
+/>
+```
+
+### Sleepy, half-closed eyes
+
+A heavy upper lid does the trick:
+
+```jsx
+<Eye
+  size={100}
+  scleraWidth={75} scleraHeight={45} scleraColor='#fff5f0'
+  irisSize={70} irisColor='#7a6ea8'
+  upperLidSize={55} lowerLidSize={25} lidColor='#d9b8a6'
+  lensPosition={[-20, 40]}
+/>
+```
+
+### Responsive sizing
+
+`size`, `width` and `height` accept any SVG-valid value, so percentages work; the eye
+then follows its container:
+
+```jsx
+<div style={{ width: '30vw' }}>
+  <Eye width='100%' height='100%' blinking />
+</div>
+```
+
+### Accessibility
+
+Give a meaningful eye an accessible name with `title`; hide purely decorative eyes
+from screen readers by wrapping them:
+
+```jsx
+<Eye title='Mascot watching the cursor' lensPosition={lens} />
+
+<span aria-hidden='true'>
+  <Eye lensMovement blinking />
+</span>
+```
+
+### Next.js
+
+The component uses hooks and timers, so in the App Router import it from a client
+component:
+
+```jsx
+'use client';
+
+import { Eye } from 'cartoon-eyes';
+
+export default function Mascot() {
+  return <Eye size={100} lensMovement blinking />;
+}
+```
+
+The initial render is deterministic (IDs come from React's `useId`), so server
+rendering and hydration work as expected; animation starts on the client.
+
+## Compatibility
+
+- React 18 and later
+- ESM only
+- Modern evergreen browsers
+- Server rendering (e.g. Next.js) works; animations start after hydration
 
 ## Changes in v2
 

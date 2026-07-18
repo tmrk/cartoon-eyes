@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 195 100" width="390" height="200">
+  <!-- README demo: a pair of default-style eyes that blink and glance around.
+       Pure CSS animation so it plays anywhere the SVG is rendered, incl. GitHub. -->
+  <style>
+    .lens { animation: look 7s ease-in-out infinite; }
+    .lid-top { animation: blink-top 3.4s linear infinite; }
+    .lid-bottom { animation: blink-bottom 3.4s linear infinite; }
+    @keyframes look {
+      0%, 12%  { transform: translate(0, 0); }
+      20%, 38% { transform: translate(10px, 3px); }
+      46%, 62% { transform: translate(-10px, 2px); }
+      70%, 86% { transform: translate(4px, -3px); }
+      100%     { transform: translate(0, 0); }
+    }
+    @keyframes blink-top {
+      0%, 90%, 100% { transform: translateY(0); }
+      94.5%, 95.5%  { transform: translateY(21px); }
+    }
+    @keyframes blink-bottom {
+      0%, 90%, 100% { transform: translateY(0); }
+      94.5%, 95.5%  { transform: translateY(-21px); }
+    }
+  </style>
+  <defs>
+    <mask id="eye-l"><ellipse fill="#ffffff" cx="50" cy="50" rx="35" ry="25"/></mask>
+    <mask id="eye-r"><ellipse fill="#ffffff" cx="145" cy="50" rx="35" ry="25"/></mask>
+  </defs>
+  <ellipse fill="#ffffff" stroke="#29223A" stroke-width="3" cx="50" cy="50" rx="35" ry="25"/>
+  <g mask="url(#eye-l)">
+    <g class="lens">
+      <ellipse fill="#3E7BFA" cx="50" cy="50" rx="20" ry="20"/>
+      <ellipse fill="#000000" cx="50" cy="50" rx="6" ry="6"/>
+    </g>
+    <rect class="lid-top" fill="#aaaaaa" x="10" y="-10" width="80" height="40"/>
+    <rect class="lid-bottom" fill="#aaaaaa" x="10" y="70" width="80" height="40"/>
+  </g>
+  <ellipse fill="#ffffff" stroke="#29223A" stroke-width="3" cx="145" cy="50" rx="35" ry="25"/>
+  <g mask="url(#eye-r)">
+    <g class="lens">
+      <ellipse fill="#3E7BFA" cx="145" cy="50" rx="20" ry="20"/>
+      <ellipse fill="#000000" cx="145" cy="50" rx="6" ry="6"/>
+    </g>
+    <rect class="lid-top" fill="#aaaaaa" x="105" y="-10" width="80" height="40"/>
+    <rect class="lid-bottom" fill="#aaaaaa" x="105" y="70" width="80" height="40"/>
+  </g>
+</svg>

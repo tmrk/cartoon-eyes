@@ -1,7 +1,7 @@
 {
   "name": "cartoon-eyes",
   "version": "2.0.1",
-  "description": "A React component that renders a customisable, animated cartoon eye as inline SVG",
+  "description": "Dependency-free React component for customisable animated SVG cartoon eyes: blinking, random wandering and controlled cursor-following movement",
   "private": false,
   "type": "module",
   "main": "./dist/CartoonEyes.js",
@@ -19,13 +19,22 @@
   "sideEffects": false,
   "keywords": [
     "react",
-    "component",
+    "react-component",
+    "svg",
+    "svg-animation",
+    "animation",
     "cartoon",
     "eye",
     "eyes",
-    "svg",
-    "animation",
-    "googly"
+    "animated-eyes",
+    "blinking",
+    "googly",
+    "googly-eyes",
+    "cursor-following",
+    "mouse-follow",
+    "eye-tracking",
+    "mascot",
+    "avatar"
   ],
   "scripts": {
     "build": "esbuild src/CartoonEyes.jsx --jsx=automatic --format=esm --outfile=dist/CartoonEyes.js",
