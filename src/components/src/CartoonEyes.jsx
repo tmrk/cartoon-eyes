@@ -128,7 +128,7 @@ export const Eye = (props) => {
   return (
     <svg width={width} height={height} viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'
       className={className ? 'cartoon-eye ' + className : 'cartoon-eye'} style={style}
-      preserveAspectRatio='none' role='img' aria-label={title}>
+      role='img' aria-label={title}>
       {title ? <title>{title}</title> : null}
       <defs>
         {/* masks are luminance-based: the ellipse must stay white regardless of scleraColor */}

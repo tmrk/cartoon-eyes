@@ -37,6 +37,10 @@ against the drawing area, the iris against the sclera, and the pupil against the
 circular iris or pupil is fitted against the smaller of its parent's radii, so it always
 stays inside an elliptical parent.
 
+The drawing area is square and the eye always keeps its proportions: equal
+`scleraWidth` and `scleraHeight` render a perfect circle. If `width` and `height`
+differ, the drawing is scaled to fit and centred rather than stretched.
+
 ## Props
 
 | Prop | Type | Default | Description |
