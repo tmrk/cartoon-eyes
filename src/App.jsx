@@ -315,7 +315,7 @@ function App() {
   const [config, setConfig] = useState(initialConfig);
   const set = (key) => (value) => setConfig((c) => ({ ...c, [key]: value }));
   const [eyeCount, setEyeCount] = useState(2); // demo-only, not an Eye prop
-  const [eyeSize, setEyeSize] = useState(480); // demo-only display size in px
+  const [eyeSize, setEyeSize] = useState(680); // demo-only display size in px
 
   // wander: one shared random target so all eyes look the same way in sync
   const [wanderLens, setWanderLens] = useState([0, 0]);
@@ -431,25 +431,27 @@ function App() {
 
         {/* hero eyes */}
         <Paper className='pop-in' sx={{
-          mb: 3, p: { xs: 2, md: 4 }, bgcolor: '#FFE8CF',
+          mb: 3, p: 0, overflow: 'hidden', bgcolor: '#FFE8CF',
           backgroundImage: `radial-gradient(rgba(41,34,58,0.12) 2px, transparent 2px)`,
           backgroundSize: '18px 18px',
         }}>
           <Box ref={eyesRef} sx={{
             display: 'flex', justifyContent: 'center', alignItems: 'center',
             gap: { xs: 2, md: 4 },
-            height: { xs: 220, md: 380 }, // fixed: the eyes overflow (hidden) at large sizes
+            // fixed height, no padding: at the default size the eyes touch the
+            // container edges and bleed past them, cropped by overflow hidden
+            height: { xs: '24vw', md: 300 },
             overflow: 'hidden',
           }}>
             {Array.from({ length: eyeCount }, (_, i) => (
               // the key includes eyeCount so both eyes remount together when the
               // count changes, keeping their blink timers in sync.
-              // width and height are both explicit px (4:3) so the slider scales
-              // the eyes uniformly; flex must never shrink them or they'd distort
+              // square boxes: the eye SVG keeps its 1:1 drawing aspect, so the
+              // slider scales uniformly; flex must never shrink the boxes
               <Box key={`${eyeCount}-${i}`} sx={{
                 flex: '0 0 auto',
-                width: { xs: `min(${eyeSize}px, 44vw)`, md: eyeSize },
-                height: { xs: `min(${eyeSize * 0.75}px, 33vw)`, md: eyeSize * 0.75 },
+                width: { xs: `min(${eyeSize}px, 52vw)`, md: eyeSize },
+                height: { xs: `min(${eyeSize}px, 52vw)`, md: eyeSize },
               }}>
                 <Eye {...heroEye} />
               </Box>
@@ -470,7 +472,7 @@ function App() {
                 display: 'flex', gap: 1, alignItems: 'center', justifyContent: 'center',
                 flexGrow: 1,
               }}>
-              <Box sx={{ width: 42, height: 30, display: 'flex' }}>
+              <Box sx={{ width: 34, height: 34, display: 'flex' }}>
                 <Eye {...eyeProps({ ...presetConfig, blinking: false, movement: 'still' }, [0, 0])}
                   width='100%' height='100%' />
               </Box>
@@ -518,7 +520,7 @@ function App() {
                 </ToggleButtonGroup>
               </Box>
               <ControlSlider label='Display size' value={eyeSize} onChange={setEyeSize}
-                min={140} max={720} step={10} unit=' px' />
+                min={140} max={900} step={10} unit=' px' />
               <Box>
                 <Typography variant='body2' gutterBottom sx={{ fontWeight: 700 }}>Eye movement</Typography>
                 <ToggleButtonGroup exclusive fullWidth size='small' value={config.movement}
@@ -581,7 +583,7 @@ function App() {
         {/* about */}
         <Box component='section' className='pop-in' sx={{ mt: 6, animationDelay: '380ms' }}>
           <Stack direction='row' spacing={1.5} sx={{ alignItems: 'center', mb: 2.5 }}>
-            <Box sx={{ width: 48, height: 36, flexShrink: 0 }}>
+            <Box sx={{ width: 40, height: 40, flexShrink: 0 }}>
               <Eye width='100%' height='100%' scleraWidth={92} scleraHeight={72}
                 irisSize={72} irisColor={CORAL} pupilSize={45}
                 lidSize={12} lidColor={INK} blinking blinkFrequency={2600} />
@@ -614,7 +616,7 @@ function App() {
                 assistants arrived!
               </Typography>
               <Typography variant='body2'>
-                Speaking of which: V2 was done with the help of Claude — though mostly
+                Speaking of which: V2 was done with the help of Claude, though mostly
                 the cosmetics of this demo and the documentation I never got around to
                 writing. The underlying eye code remains proudly mine.
               </Typography>
