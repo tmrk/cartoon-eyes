@@ -188,51 +188,150 @@ const eyeDefaults = {
   blinkSpeed: 80, blinkFrequency: 3000,
 };
 
-function buildCodeProps(config) {
+// diff a demo config against the Eye component's own defaults, collapsing
+// symmetric width/height (and lid) pairs into their shorthand props; raw values
+// (number | color string | true), shared by the JSX snippet and the share URL
+function diffEyeProps(config) {
   const props = [];
   const add = (name, value) => props.push({ name, value });
 
-  if (config.scleraWidth !== eyeDefaults.scleraWidth) add('scleraWidth', `{${config.scleraWidth}}`);
-  if (config.scleraHeight !== eyeDefaults.scleraHeight) add('scleraHeight', `{${config.scleraHeight}}`);
-  if (config.scleraColor !== eyeDefaults.scleraColor) add('scleraColor', `'${config.scleraColor}'`);
+  if (config.scleraWidth !== eyeDefaults.scleraWidth) add('scleraWidth', config.scleraWidth);
+  if (config.scleraHeight !== eyeDefaults.scleraHeight) add('scleraHeight', config.scleraHeight);
+  if (config.scleraColor !== eyeDefaults.scleraColor) add('scleraColor', config.scleraColor);
 
   if (config.irisWidth === config.irisHeight) {
-    if (config.irisWidth !== eyeDefaults.irisSize) add('irisSize', `{${config.irisWidth}}`);
+    if (config.irisWidth !== eyeDefaults.irisSize) add('irisSize', config.irisWidth);
   } else {
-    add('irisWidth', `{${config.irisWidth}}`);
-    add('irisHeight', `{${config.irisHeight}}`);
+    add('irisWidth', config.irisWidth);
+    add('irisHeight', config.irisHeight);
   }
-  if (config.irisColor !== eyeDefaults.irisColor) add('irisColor', `'${config.irisColor}'`);
+  if (config.irisColor !== eyeDefaults.irisColor) add('irisColor', config.irisColor);
 
   if (config.pupilWidth === config.pupilHeight) {
-    if (config.pupilWidth !== eyeDefaults.pupilSize) add('pupilSize', `{${config.pupilWidth}}`);
+    if (config.pupilWidth !== eyeDefaults.pupilSize) add('pupilSize', config.pupilWidth);
   } else {
-    add('pupilWidth', `{${config.pupilWidth}}`);
-    add('pupilHeight', `{${config.pupilHeight}}`);
+    add('pupilWidth', config.pupilWidth);
+    add('pupilHeight', config.pupilHeight);
   }
-  if (config.pupilColor !== eyeDefaults.pupilColor) add('pupilColor', `'${config.pupilColor}'`);
+  if (config.pupilColor !== eyeDefaults.pupilColor) add('pupilColor', config.pupilColor);
 
   if (config.upperLidSize === config.lowerLidSize) {
-    if (config.upperLidSize !== eyeDefaults.lidSize) add('lidSize', `{${config.upperLidSize}}`);
+    if (config.upperLidSize !== eyeDefaults.lidSize) add('lidSize', config.upperLidSize);
   } else {
-    add('upperLidSize', `{${config.upperLidSize}}`);
-    add('lowerLidSize', `{${config.lowerLidSize}}`);
+    add('upperLidSize', config.upperLidSize);
+    add('lowerLidSize', config.lowerLidSize);
   }
   if (config.upperLidColor === config.lowerLidColor) {
-    if (config.upperLidColor !== eyeDefaults.lidColor) add('lidColor', `'${config.upperLidColor}'`);
+    if (config.upperLidColor !== eyeDefaults.lidColor) add('lidColor', config.upperLidColor);
   } else {
-    add('upperLidColor', `'${config.upperLidColor}'`);
-    add('lowerLidColor', `'${config.lowerLidColor}'`);
+    add('upperLidColor', config.upperLidColor);
+    add('lowerLidColor', config.lowerLidColor);
   }
 
   if (config.blinking) {
-    add('blinking', null); // bare boolean prop
-    if (config.blinkSpeed !== eyeDefaults.blinkSpeed) add('blinkSpeed', `{${config.blinkSpeed}}`);
-    if (config.blinkFrequency !== eyeDefaults.blinkFrequency) add('blinkFrequency', `{${config.blinkFrequency}}`);
-    if (config.blinkSqueeze) add('blinkSqueeze', null);
+    add('blinking', true);
+    if (config.blinkSpeed !== eyeDefaults.blinkSpeed) add('blinkSpeed', config.blinkSpeed);
+    if (config.blinkFrequency !== eyeDefaults.blinkFrequency) add('blinkFrequency', config.blinkFrequency);
+    if (config.blinkSqueeze) add('blinkSqueeze', true);
   }
-  if (config.movement === 'wander') add('lensMovement', null);
   return props;
+}
+
+function buildCodeProps(config) {
+  const props = diffEyeProps(config).map(({ name, value }) => ({
+    name,
+    value: value === true ? null // bare boolean prop
+      : typeof value === 'number' ? `{${value}}`
+        : `'${value}'`,
+  }));
+  if (config.movement === 'wander') props.push({ name: 'lensMovement', value: null });
+  return props;
+}
+
+// the query string carries the same collapsed, non-default props as the JSX
+// snippet, hex colors travel without their '#'. `movement` is always emitted so
+// a share URL is never bare: a bare URL means the pristine demo (initialConfig),
+// any config param means "Eye defaults + overrides"
+function buildShareParams(config) {
+  const params = new URLSearchParams();
+  for (const { name, value } of diffEyeProps(config)) {
+    params.set(name, value === true ? '1'
+      : typeof value === 'string' ? value.replace(/^#/, '')
+        : String(value));
+  }
+  params.set('movement', config.movement);
+  return params;
+}
+
+// inverse of buildShareParams: expand shorthand params over the Eye defaults;
+// malformed values are ignored so hand-edited URLs degrade gracefully. Returns
+// null when the URL carries no recognised config at all.
+function parseShareParams(search) {
+  const params = new URLSearchParams(search);
+  const config = {
+    ...initialConfig, // key order matters: preset matching compares JSON strings
+    scleraWidth: eyeDefaults.scleraWidth, scleraHeight: eyeDefaults.scleraHeight, scleraColor: eyeDefaults.scleraColor,
+    irisWidth: eyeDefaults.irisSize, irisHeight: eyeDefaults.irisSize, irisColor: eyeDefaults.irisColor,
+    pupilWidth: eyeDefaults.pupilSize, pupilHeight: eyeDefaults.pupilSize, pupilColor: eyeDefaults.pupilColor,
+    upperLidSize: eyeDefaults.lidSize, upperLidColor: eyeDefaults.lidColor,
+    lowerLidSize: eyeDefaults.lidSize, lowerLidColor: eyeDefaults.lidColor,
+    blinking: false, blinkSqueeze: false,
+    movement: 'still',
+  };
+  let found = false;
+
+  const num = (name, min, max, apply) => {
+    if (!params.has(name)) return;
+    const value = Number(params.get(name));
+    if (!Number.isFinite(value)) return;
+    found = true;
+    apply(Math.min(max, Math.max(min, value)));
+  };
+  const color = (name, apply) => {
+    const raw = (params.get(name) || '').replace(/^#/, '');
+    if (!/^([0-9a-f]{3}|[0-9a-f]{6})$/i.test(raw)) return;
+    found = true;
+    apply(`#${raw}`);
+  };
+  const flag = (name, apply) => {
+    if (!params.has(name)) return;
+    found = true;
+    apply(!['0', 'false'].includes(params.get(name)));
+  };
+
+  num('scleraWidth', 0, 100, (v) => { config.scleraWidth = v; });
+  num('scleraHeight', 0, 100, (v) => { config.scleraHeight = v; });
+  color('scleraColor', (v) => { config.scleraColor = v; });
+
+  // shorthands first so the specific params win if a hand-edited URL has both
+  num('irisSize', 0, 100, (v) => { config.irisWidth = v; config.irisHeight = v; });
+  num('irisWidth', 0, 100, (v) => { config.irisWidth = v; });
+  num('irisHeight', 0, 100, (v) => { config.irisHeight = v; });
+  color('irisColor', (v) => { config.irisColor = v; });
+
+  num('pupilSize', 0, 100, (v) => { config.pupilWidth = v; config.pupilHeight = v; });
+  num('pupilWidth', 0, 100, (v) => { config.pupilWidth = v; });
+  num('pupilHeight', 0, 100, (v) => { config.pupilHeight = v; });
+  color('pupilColor', (v) => { config.pupilColor = v; });
+
+  num('lidSize', 0, 100, (v) => { config.upperLidSize = v; config.lowerLidSize = v; });
+  num('upperLidSize', 0, 100, (v) => { config.upperLidSize = v; });
+  num('lowerLidSize', 0, 100, (v) => { config.lowerLidSize = v; });
+  color('lidColor', (v) => { config.upperLidColor = v; config.lowerLidColor = v; });
+  color('upperLidColor', (v) => { config.upperLidColor = v; });
+  color('lowerLidColor', (v) => { config.lowerLidColor = v; });
+
+  flag('blinking', (v) => { config.blinking = v; });
+  num('blinkSpeed', 30, 400, (v) => { config.blinkSpeed = v; });
+  num('blinkFrequency', 500, 8000, (v) => { config.blinkFrequency = v; });
+  flag('blinkSqueeze', (v) => { config.blinkSqueeze = v; });
+
+  if (['follow', 'wander', 'still'].includes(params.get('movement'))) {
+    found = true;
+    config.movement = params.get('movement');
+  }
+
+  return found ? config : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -280,10 +379,10 @@ const Card = ({ title, children, sx }) => (
   </Paper>
 );
 
-const CopyButton = ({ getText, label = 'Copy' }) => {
+const CopyButton = ({ getText, label = 'Copy', color = 'primary' }) => {
   const [copied, setCopied] = useState(false);
   return (
-    <Button size='small' variant='contained' disableElevation
+    <Button size='small' variant='contained' disableElevation color={color}
       onClick={() => {
         navigator.clipboard.writeText(getText());
         setCopied(true);
@@ -322,8 +421,24 @@ const eyeProps = (config, lensPosition) => ({
 // ---------------------------------------------------------------------------
 
 function App() {
-  const [config, setConfig] = useState(initialConfig);
+  const [config, setConfig] = useState(() => parseShareParams(window.location.search) ?? initialConfig);
   const set = (key) => (value) => setConfig((c) => ({ ...c, [key]: value }));
+
+  // shareable URL for the current config; the address bar follows it (debounced)
+  // once the user changes anything. Comparing against the config object we
+  // loaded with (not a first-run flag) keeps the pristine URL clean even under
+  // StrictMode's double-invoked effects.
+  const shareUrl = useMemo(() => {
+    const { origin, pathname } = window.location;
+    return `${origin}${pathname}?${buildShareParams(config)}`;
+  }, [config]);
+  const loadedConfig = useRef(config);
+  useEffect(() => {
+    if (config === loadedConfig.current) return;
+    const timeoutId = setTimeout(() => window.history.replaceState(null, '', shareUrl), 300);
+    return () => clearTimeout(timeoutId);
+  }, [config, shareUrl]);
+
   const [eyeCount, setEyeCount] = useState(1); // demo-only, not an Eye prop
   const [eyeSize, setEyeSize] = useState(680); // demo-only display size in px
 
@@ -557,7 +672,10 @@ function App() {
         <Paper className='pop-in' sx={{ p: 2.5, bgcolor: INK, color: CREAM, animationDelay: '320ms' }}>
           <Stack direction='row' sx={{ mb: 1.5, justifyContent: 'space-between', alignItems: 'center' }}>
             <Typography variant='h6' sx={{ color: CREAM }}>Your eye, as code</Typography>
-            <CopyButton getText={() => codeText} label='Copy JSX' />
+            <Stack direction='row' spacing={1}>
+              <CopyButton getText={() => shareUrl} label='Copy link' color='secondary' />
+              <CopyButton getText={() => codeText} label='Copy JSX' />
+            </Stack>
           </Stack>
           <Box component='pre' sx={{
             m: 0, p: 2, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.06)',
