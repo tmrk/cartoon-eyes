@@ -315,7 +315,7 @@ function App() {
   const [config, setConfig] = useState(initialConfig);
   const set = (key) => (value) => setConfig((c) => ({ ...c, [key]: value }));
   const [eyeCount, setEyeCount] = useState(2); // demo-only, not an Eye prop
-  const [eyeSize, setEyeSize] = useState(360); // demo-only display size in px
+  const [eyeSize, setEyeSize] = useState(480); // demo-only display size in px
 
   // wander: one shared random target so all eyes look the same way in sync
   const [wanderLens, setWanderLens] = useState([0, 0]);
@@ -436,14 +436,20 @@ function App() {
           backgroundSize: '18px 18px',
         }}>
           <Box ref={eyesRef} sx={{
-            display: 'flex', justifyContent: 'center', gap: { xs: 2, md: 4 },
-            py: { xs: 1, md: 2 },
+            display: 'flex', justifyContent: 'center', alignItems: 'center',
+            gap: { xs: 2, md: 4 },
+            height: { xs: 220, md: 380 }, // fixed: the eyes overflow (hidden) at large sizes
+            overflow: 'hidden',
           }}>
             {Array.from({ length: eyeCount }, (_, i) => (
               // the key includes eyeCount so both eyes remount together when the
-              // count changes, keeping their blink timers in sync
+              // count changes, keeping their blink timers in sync.
+              // width and height are both explicit px (4:3) so the slider scales
+              // the eyes uniformly; flex must never shrink them or they'd distort
               <Box key={`${eyeCount}-${i}`} sx={{
-                width: `min(${eyeSize}px, 42vw)`, aspectRatio: '4 / 3',
+                flex: '0 0 auto',
+                width: { xs: `min(${eyeSize}px, 44vw)`, md: eyeSize },
+                height: { xs: `min(${eyeSize * 0.75}px, 33vw)`, md: eyeSize * 0.75 },
               }}>
                 <Eye {...heroEye} />
               </Box>
@@ -461,7 +467,8 @@ function App() {
                 bgcolor: activePreset === name ? CORAL : PAPER,
                 color: activePreset === name ? PAPER : INK,
                 '&:hover': { bgcolor: activePreset === name ? CORAL : '#FFF3DE' },
-                display: 'flex', gap: 1, alignItems: 'center',
+                display: 'flex', gap: 1, alignItems: 'center', justifyContent: 'center',
+                flexGrow: 1,
               }}>
               <Box sx={{ width: 42, height: 30, display: 'flex' }}>
                 <Eye {...eyeProps({ ...presetConfig, blinking: false, movement: 'still' }, [0, 0])}
@@ -511,7 +518,7 @@ function App() {
                 </ToggleButtonGroup>
               </Box>
               <ControlSlider label='Display size' value={eyeSize} onChange={setEyeSize}
-                min={140} max={480} step={10} unit=' px' />
+                min={140} max={720} step={10} unit=' px' />
               <Box>
                 <Typography variant='body2' gutterBottom sx={{ fontWeight: 700 }}>Eye movement</Typography>
                 <ToggleButtonGroup exclusive fullWidth size='small' value={config.movement}
