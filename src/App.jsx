@@ -149,6 +149,24 @@ const presets = {
     upperLidSize: 0, lowerLidSize: 0,
     blinking: false,
   },
+  Alien: {
+    ...initialConfig,
+    scleraWidth: 62, scleraHeight: 88, scleraColor: '#0d0d15',
+    irisWidth: 85, irisHeight: 85, irisColor: '#16162a',
+    pupilWidth: 55, pupilHeight: 55, pupilColor: '#000000',
+    upperLidSize: 0, upperLidColor: '#0d0d15',
+    lowerLidSize: 0, lowerLidColor: '#0d0d15',
+    blinkSpeed: 160, blinkFrequency: 6000,
+  },
+  Frog: {
+    ...initialConfig,
+    scleraWidth: 80, scleraHeight: 80, scleraColor: '#f7c948',
+    irisWidth: 70, irisHeight: 70, irisColor: '#b45309',
+    pupilWidth: 85, pupilHeight: 30, pupilColor: '#101010',
+    upperLidSize: 10, upperLidColor: '#3f6212',
+    lowerLidSize: 10, lowerLidColor: '#3f6212',
+    blinkFrequency: 4200,
+  },
 };
 
 // the Eye component's own defaults, used to emit only non-default props
@@ -231,7 +249,8 @@ const ColorControl = ({ label, value, onChange }) => (
   <Box>
     <Typography variant='body2' gutterBottom sx={{ fontWeight: 700 }}>{label}</Typography>
     <MuiColorInput format='hex' isAlphaHidden size='small' value={value}
-      onChange={(v) => onChange(v)} sx={{ width: '100%' }} />
+      onChange={(v) => onChange(v)}
+      sx={{ width: '100%', '& input': { fontFamily: "'Fira Code', monospace" } }} />
   </Box>
 );
 
@@ -296,6 +315,7 @@ function App() {
   const [config, setConfig] = useState(initialConfig);
   const set = (key) => (value) => setConfig((c) => ({ ...c, [key]: value }));
   const [eyeCount, setEyeCount] = useState(2); // demo-only, not an Eye prop
+  const [eyeSize, setEyeSize] = useState(360); // demo-only display size in px
 
   // wander: one shared random target so all eyes look the same way in sync
   const [wanderLens, setWanderLens] = useState([0, 0]);
@@ -420,12 +440,12 @@ function App() {
             py: { xs: 1, md: 2 },
           }}>
             {Array.from({ length: eyeCount }, (_, i) => (
-              <Box key={i} sx={{
-                width: 'clamp(130px, 30vw, 280px)', aspectRatio: '4 / 3',
+              // the key includes eyeCount so both eyes remount together when the
+              // count changes, keeping their blink timers in sync
+              <Box key={`${eyeCount}-${i}`} sx={{
+                width: `min(${eyeSize}px, 42vw)`, aspectRatio: '4 / 3',
               }}>
-                <Eye {...heroEye} title={
-                  eyeCount === 1 ? 'cartoon eye' : (i === 0 ? 'left cartoon eye' : 'right cartoon eye')
-                } />
+                <Eye {...heroEye} />
               </Box>
             ))}
           </Box>
@@ -490,6 +510,8 @@ function App() {
                   <ToggleButton value={2}>Two</ToggleButton>
                 </ToggleButtonGroup>
               </Box>
+              <ControlSlider label='Display size' value={eyeSize} onChange={setEyeSize}
+                min={140} max={480} step={10} unit=' px' />
               <Box>
                 <Typography variant='body2' gutterBottom sx={{ fontWeight: 700 }}>Eye movement</Typography>
                 <ToggleButtonGroup exclusive fullWidth size='small' value={config.movement}
@@ -548,6 +570,74 @@ function App() {
             </code>
           </Box>
         </Paper>
+
+        {/* about */}
+        <Box component='section' className='pop-in' sx={{ mt: 6, animationDelay: '380ms' }}>
+          <Stack direction='row' spacing={1.5} sx={{ alignItems: 'center', mb: 2.5 }}>
+            <Box sx={{ width: 48, height: 36, flexShrink: 0 }}>
+              <Eye width='100%' height='100%' scleraWidth={92} scleraHeight={72}
+                irisSize={72} irisColor={CORAL} pupilSize={45}
+                lidSize={12} lidColor={INK} blinking blinkFrequency={2600} />
+            </Box>
+            <Typography variant='h2' sx={{ fontSize: { xs: '1.5rem', md: '1.9rem' } }}>
+              The story behind these eyes
+            </Typography>
+          </Stack>
+          <Box sx={{
+            display: 'grid', gap: 3,
+            gridTemplateColumns: { xs: '1fr', md: '5fr 4fr' },
+          }}>
+            <Paper sx={{ p: 3 }}>
+              <Typography variant='h6' sx={{ mb: 1 }}>
+                Coded by hand, one maths headache at a time
+              </Typography>
+              <Typography variant='body2' sx={{ mb: 1.5 }}>
+                I built this mini app and the <Link href='https://www.npmjs.com/package/cartoon-eyes'
+                target='_blank' rel='noopener'>cartoon-eyes</Link> npm package in January 2023,
+                back before AI coding assistants were a thing. The idea just sparked in my head
+                one day and would not let go, so I kept coding away at it until I managed to
+                code it to completion.
+              </Typography>
+              <Typography variant='body2'>
+                It turned out to be a brilliant exercise, too. Getting the geometry right
+                forced my brain to do far more maths than everyday UI work ever does, and
+                working the formulas out properly was the only way to wrap my head around
+                some of it and make the SVG code accurate. It taught me a lot. Which, of
+                course, became slightly obsolete not long after, when the AI coding
+                assistants arrived!
+              </Typography>
+            </Paper>
+            <Paper sx={{ p: 3, bgcolor: '#FFE8CF' }}>
+              <Typography variant='h6' sx={{ mb: 1 }}>Nothing is hardcoded</Typography>
+              <Typography variant='body2' sx={{ mb: 1.5 }}>
+                The whole eye is one 100% dynamic piece of SVG, and every measurement is
+                relative: each shape is sized as a percentage of its parent.
+              </Typography>
+              <Stack direction='row' spacing={0.75} useFlexGap
+                sx={{ alignItems: 'center', flexWrap: 'wrap', mb: 1.5, rowGap: 0.75 }}>
+                {['pupil', 'iris', 'sclera', 'drawing area'].map((label, i) => (
+                  <React.Fragment key={label}>
+                    {i > 0 && (
+                      <Typography variant='caption' sx={{ color: 'text.secondary', fontWeight: 700 }}>
+                        % of
+                      </Typography>
+                    )}
+                    <Box sx={{
+                      px: 1.25, py: 0.25, border: `2px solid ${INK}`, borderRadius: 2,
+                      bgcolor: PAPER, fontFamily: "'Fredoka', sans-serif", fontSize: 14,
+                    }}>
+                      {label}
+                    </Box>
+                  </React.Fragment>
+                ))}
+              </Stack>
+              <Typography variant='body2'>
+                Change any value and the rest adapt proportionally, and because it is pure
+                vector it stays razor sharp at any size, from favicon to billboard.
+              </Typography>
+            </Paper>
+          </Box>
+        </Box>
 
         {/* footer */}
         <Stack direction='row' className='pop-in' sx={{ mt: 4, mb: 2, justifyContent: 'space-between' }}>
