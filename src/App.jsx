@@ -179,6 +179,8 @@ const presetDisplaySize = {
   Sleepy: 750, Surprised: 410, Alien: 390, Frog: 430,
 };
 
+const defaultEyeSize = presetDisplaySize.Default;
+
 // the Eye component's own defaults, used to emit only non-default props
 const eyeDefaults = {
   scleraWidth: 100, scleraHeight: 100, scleraColor: '#ffffff',
@@ -249,10 +251,11 @@ function buildCodeProps(config) {
 }
 
 // the query string carries the same collapsed, non-default props as the JSX
-// snippet, hex colors travel without their '#'. `movement` is always emitted so
-// a share URL is never bare: a bare URL means the pristine demo (initialConfig),
-// any config param means "Eye defaults + overrides"
-function buildShareParams(config) {
+// snippet (hex colors travel without their '#') plus the demo-only `movement`
+// and display `size`. `movement` is always emitted so a share URL is never
+// bare: a bare URL means the pristine demo (initialConfig), any config param
+// means "Eye defaults + overrides"
+function buildShareParams(config, eyeSize) {
   const params = new URLSearchParams();
   for (const { name, value } of diffEyeProps(config)) {
     params.set(name, value === true ? '1'
@@ -260,6 +263,7 @@ function buildShareParams(config) {
         : String(value));
   }
   params.set('movement', config.movement);
+  if (eyeSize !== defaultEyeSize) params.set('size', String(eyeSize));
   return params;
 }
 
@@ -332,6 +336,13 @@ function parseShareParams(search) {
   }
 
   return found ? config : null;
+}
+
+// demo-only display size, kept outside the config object (and so outside
+// parseShareParams); clamped to the display-size slider's range
+function parseShareSize(search) {
+  const value = Number(new URLSearchParams(search).get('size'));
+  return Number.isFinite(value) && value > 0 ? Math.min(900, Math.max(140, value)) : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -423,24 +434,27 @@ const eyeProps = (config, lensPosition) => ({
 function App() {
   const [config, setConfig] = useState(() => parseShareParams(window.location.search) ?? initialConfig);
   const set = (key) => (value) => setConfig((c) => ({ ...c, [key]: value }));
+  const [eyeCount, setEyeCount] = useState(1); // demo-only, not an Eye prop
+  const [eyeSize, setEyeSize] = useState( // demo-only display size in px
+    () => parseShareSize(window.location.search) ?? defaultEyeSize);
 
   // shareable URL for the current config; the address bar follows it (debounced)
-  // once the user changes anything. Comparing against the config object we
-  // loaded with (not a first-run flag) keeps the pristine URL clean even under
-  // StrictMode's double-invoked effects.
+  // once the user changes anything. The pristine-load values are compared by
+  // ref/value (not a first-run flag) so the loaded URL stays untouched even
+  // under StrictMode's double-invoked effects; after the first real change the
+  // sentinel is cleared and every change syncs.
   const shareUrl = useMemo(() => {
     const { origin, pathname } = window.location;
-    return `${origin}${pathname}?${buildShareParams(config)}`;
-  }, [config]);
-  const loadedConfig = useRef(config);
+    return `${origin}${pathname}?${buildShareParams(config, eyeSize)}`;
+  }, [config, eyeSize]);
+  const loadedState = useRef({ config, eyeSize });
   useEffect(() => {
-    if (config === loadedConfig.current) return;
+    const loaded = loadedState.current;
+    if (loaded && config === loaded.config && eyeSize === loaded.eyeSize) return;
+    loadedState.current = null;
     const timeoutId = setTimeout(() => window.history.replaceState(null, '', shareUrl), 300);
     return () => clearTimeout(timeoutId);
-  }, [config, shareUrl]);
-
-  const [eyeCount, setEyeCount] = useState(1); // demo-only, not an Eye prop
-  const [eyeSize, setEyeSize] = useState(680); // demo-only display size in px
+  }, [config, eyeSize, shareUrl]);
 
   // wander: one shared random target so all eyes look the same way in sync
   const [wanderLens, setWanderLens] = useState([0, 0]);
