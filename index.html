@@ -13,7 +13,36 @@
     <link rel="icon" type="image/svg+xml" href="./favicon.svg?v=2" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#101418" />
-    <meta name="description" content="Cartoon Eyes: a customisable React SVG eye component. Live playground and demo." />
+    <meta name="description" content="Cartoon Eyes: a dependency-free React component for animated SVG eyes that blink, wander randomly or follow the mouse cursor. Live playground and docs." />
+    <link rel="canonical" href="https://tmrk.github.io/cartoon-eyes/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Cartoon Eyes" />
+    <meta property="og:title" content="Cartoon Eyes: animated SVG eyes for React" />
+    <meta property="og:description" content="A dependency-free React component for customisable animated SVG eyes. Make them blink, wander randomly or follow the mouse cursor." />
+    <meta property="og:url" content="https://tmrk.github.io/cartoon-eyes/" />
+    <meta property="og:image" content="https://tmrk.github.io/cartoon-eyes/social-preview.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="A row of colourful cartoon eyes in different styles, with the text 'Cartoon Eyes: animated SVG eyes for React'" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Cartoon Eyes: animated SVG eyes for React" />
+    <meta name="twitter:description" content="A dependency-free React component for customisable animated SVG eyes. Blink, wander or follow the cursor." />
+    <meta name="twitter:image" content="https://tmrk.github.io/cartoon-eyes/social-preview.png" />
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareSourceCode",
+      "name": "cartoon-eyes",
+      "description": "A dependency-free React component that renders customisable animated cartoon eyes as inline SVG. The eyes can blink, wander randomly or follow the mouse cursor.",
+      "url": "https://tmrk.github.io/cartoon-eyes/",
+      "codeRepository": "https://github.com/tmrk/cartoon-eyes",
+      "programmingLanguage": "JavaScript",
+      "runtimePlatform": "React",
+      "license": "https://opensource.org/licenses/MIT",
+      "author": { "@type": "Person", "name": "Tamas Marki" },
+      "installUrl": "https://www.npmjs.com/package/cartoon-eyes"
+    }
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:ital,wght@0,400;0,600;0,700;0,800;1,400&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet" />
@@ -22,8 +51,60 @@
     <title>Cartoon Eyes: React SVG eye component playground</title>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <noscript>
+      Cartoon Eyes is a dependency-free React component for customisable animated SVG eyes
+      that can blink, wander randomly or follow the mouse cursor. The interactive playground
+      needs JavaScript, but the docs are on
+      <a href="https://github.com/tmrk/cartoon-eyes">GitHub</a> and the package is on
+      <a href="https://www.npmjs.com/package/cartoon-eyes">npm</a>
+      (<code>npm install cartoon-eyes</code>).
+    </noscript>
+    <div id="root">
+      <!-- Static, crawlable landing content; React replaces it on mount. -->
+      <style>
+        .static-landing {
+          max-width: 42rem; margin: 0 auto; padding: 3rem 1.5rem;
+          font-family: 'Nunito', sans-serif; color: #29223A; line-height: 1.6;
+        }
+        .static-landing h1, .static-landing h2 { font-family: 'Fredoka', sans-serif; }
+        .static-landing pre {
+          background: #FFFDF8; border: 1px solid #e8ddc8; border-radius: 8px;
+          padding: 0.75rem 1rem; overflow-x: auto;
+          font-family: 'Fira Code', monospace; font-size: 0.85rem;
+        }
+        .static-landing a { color: #0E9E9E; }
+      </style>
+      <main class="static-landing">
+        <h1>Cartoon Eyes for React</h1>
+        <p>
+          A lightweight, dependency-free React component for creating customisable animated
+          SVG eyes. Make a pair of googly eyes blink, wander randomly, follow the mouse
+          cursor or look towards any controlled position — all rendered as crisp inline SVG
+          with TypeScript declarations included.
+        </p>
+        <pre><code>npm install cartoon-eyes</code></pre>
+        <pre><code>import { Eye } from 'cartoon-eyes';
+
+&lt;Eye irisColor='#3E7BFA' scleraWidth={80} scleraHeight={55} blinking /&gt;</code></pre>
+        <p>
+          The interactive playground on this page lets you design an eye visually — shape,
+          colours, eyelids, cat-style pupils, blinking and movement — and copy the matching
+          React code. It loads once JavaScript runs.
+        </p>
+        <h2>Use cases</h2>
+        <ul>
+          <li>Animated website mascots and playful landing pages</li>
+          <li>Cursor-following eyes and eye-tracking effects</li>
+          <li>Avatars, character creators and profile cards</li>
+          <li>Children's and educational interfaces</li>
+          <li>Blinking eyes for loading, empty states and Easter eggs</li>
+        </ul>
+        <p>
+          <a href="https://www.npmjs.com/package/cartoon-eyes">cartoon-eyes on npm</a> ·
+          <a href="https://github.com/tmrk/cartoon-eyes">Source and docs on GitHub</a>
+        </p>
+      </main>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
