@@ -7,6 +7,7 @@ towards any controlled position.
 ![Two cartoon eyes blinking and glancing around](docs/demo.svg)
 
 [![npm version](https://img.shields.io/npm/v/cartoon-eyes)](https://www.npmjs.com/package/cartoon-eyes)
+[![build status](https://img.shields.io/github/actions/workflow/status/tmrk/cartoon-eyes/ci.yml?branch=master)](https://github.com/tmrk/cartoon-eyes/actions/workflows/ci.yml)
 [![package size](https://img.shields.io/npm/unpacked-size/cartoon-eyes?label=size)](https://bundlephobia.com/package/cartoon-eyes)
 [![licence](https://img.shields.io/npm/l/cartoon-eyes)](LICENSE)
 
