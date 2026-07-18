@@ -130,7 +130,7 @@ const presets = {
     pupilWidth: 14, pupilHeight: 90, pupilColor: '#1c1c1c',
     upperLidSize: 12, upperLidColor: '#8a6d3b',
     lowerLidSize: 8, lowerLidColor: '#8a6d3b',
-    blinkFrequency: 4500,
+    blinkSpeed: 200, blinkFrequency: 4500, // the languid cat blink
   },
   Sleepy: {
     ...initialConfig,
@@ -140,6 +140,7 @@ const presets = {
     upperLidSize: 55, upperLidColor: '#d9b8a6',
     lowerLidSize: 25, lowerLidColor: '#d9b8a6',
     blinkSpeed: 300, blinkFrequency: 2200,
+    movement: 'still', // too drowsy to look around
   },
   Surprised: {
     ...initialConfig,
@@ -152,7 +153,8 @@ const presets = {
   Alien: {
     ...initialConfig,
     scleraWidth: 62, scleraHeight: 88, scleraColor: '#0d0d15',
-    irisWidth: 85, irisHeight: 85, irisColor: '#16162a',
+    // just light enough against the near-black sclera that the wander reads
+    irisWidth: 85, irisHeight: 85, irisColor: '#252542',
     pupilWidth: 55, pupilHeight: 55, pupilColor: '#000000',
     upperLidSize: 0, upperLidColor: '#0d0d15',
     lowerLidSize: 0, lowerLidColor: '#0d0d15',
@@ -167,6 +169,14 @@ const presets = {
     lowerLidSize: 10, lowerLidColor: '#3f6212',
     blinkFrequency: 4200,
   },
+};
+
+// each preset's default display size, chosen so its sclera fits the fixed-height
+// stage: taller scleras get a smaller box, keeping the drawn eye roughly the same
+// visual size (sclera height ≈ 340px on desktop)
+const presetDisplaySize = {
+  Default: 680, Snake: 490, Zombie: 520, Cat: 520,
+  Sleepy: 750, Surprised: 410, Alien: 390, Frog: 430,
 };
 
 // the Eye component's own defaults, used to emit only non-default props
@@ -448,10 +458,12 @@ function App() {
               // count changes, keeping their blink timers in sync.
               // square boxes: the eye SVG keeps its 1:1 drawing aspect, so the
               // slider scales uniformly; flex must never shrink the boxes
+              // the xs clamp scales with eyeSize (52vw at the 680 default) so the
+              // stage keeps the same proportions on mobile for every preset size
               <Box key={`${eyeCount}-${i}`} sx={{
                 flex: '0 0 auto',
-                width: { xs: `min(${eyeSize}px, 52vw)`, md: eyeSize },
-                height: { xs: `min(${eyeSize}px, 52vw)`, md: eyeSize },
+                width: { xs: `min(${eyeSize}px, ${(eyeSize * 52 / 680).toFixed(1)}vw)`, md: eyeSize },
+                height: { xs: `min(${eyeSize}px, ${(eyeSize * 52 / 680).toFixed(1)}vw)`, md: eyeSize },
               }}>
                 <Eye {...heroEye} />
               </Box>
@@ -464,7 +476,7 @@ function App() {
           sx={{ mb: 3, animationDelay: '80ms', flexWrap: 'wrap' }}>
           {Object.entries(presets).map(([name, presetConfig]) => (
             <Button key={name} variant='contained' disableElevation
-              onClick={() => setConfig(presetConfig)}
+              onClick={() => { setConfig(presetConfig); setEyeSize(presetDisplaySize[name]); }}
               sx={{
                 bgcolor: activePreset === name ? CORAL : PAPER,
                 color: activePreset === name ? PAPER : INK,
