@@ -314,7 +314,7 @@ const eyeProps = (config, lensPosition) => ({
 function App() {
   const [config, setConfig] = useState(initialConfig);
   const set = (key) => (value) => setConfig((c) => ({ ...c, [key]: value }));
-  const [eyeCount, setEyeCount] = useState(2); // demo-only, not an Eye prop
+  const [eyeCount, setEyeCount] = useState(1); // demo-only, not an Eye prop
   const [eyeSize, setEyeSize] = useState(680); // demo-only display size in px
 
   // wander: one shared random target so all eyes look the same way in sync
@@ -437,10 +437,10 @@ function App() {
         }}>
           <Box ref={eyesRef} sx={{
             display: 'flex', justifyContent: 'center', alignItems: 'center',
-            gap: { xs: 2, md: 4 },
-            // fixed height, no padding: at the default size the eyes touch the
-            // container edges and bleed past them, cropped by overflow hidden
-            height: { xs: '24vw', md: 300 },
+            gap: { xs: 1, md: 2 },
+            // fixed height, no padding: tall enough to fit the default-size eye,
+            // larger sizes bleed past the edges, cropped by overflow hidden
+            height: { xs: '28vw', md: 360 },
             overflow: 'hidden',
           }}>
             {Array.from({ length: eyeCount }, (_, i) => (
