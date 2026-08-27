@@ -1,5 +1,11 @@
 import * as React from 'react';
 
+/**
+ * Every colour prop takes any CSS colour the renderer understands, and may
+ * carry an alpha channel as an 8-digit hex (`#RRGGBBAA`) or its 4-digit
+ * shorthand (`#RGBA`): the alpha is split off into the shape's `fill-opacity`,
+ * so the drawing stays valid plain SVG.
+ */
 export interface EyeProps {
   /** Sets both `width` and `height` of the rendered SVG. */
   size?: number | string;
@@ -68,7 +74,10 @@ export interface EyeProps {
    * to 100 (right/bottom), measured against the full outer iris. Default `[-40, -40]`.
    */
   catchlightPosition?: [number, number];
-  /** Default `#ffffff`. */
+  /**
+   * Default `#ffffff`. Takes an alpha channel as an 8-digit hex, so
+   * `#FFFFFF80` gives the half-transparent glint of a wet eye.
+   */
   catchlightColor?: string;
   catchlightStyle?: React.CSSProperties;
 
@@ -126,6 +135,13 @@ export interface EyeProps {
   blinkFrequency?: number;
   /** Squash the whole eye vertically while blinking. Default false. */
   blinkSqueeze?: boolean;
+  /**
+   * Controlled blinking: while this is set the eye's own blink timer stands down
+   * and the lids follow the value, so a parent can blink several eyes in step.
+   * `EyePair` uses it to blink its two eyes together. Leave it undefined
+   * (the default) for the eye to keep its own clock.
+   */
+  blinkClosed?: boolean;
 
   /** Accessible name for the eye (rendered as an SVG `<title>`). */
   title?: string;
@@ -133,5 +149,33 @@ export interface EyeProps {
   style?: React.CSSProperties;
 }
 
+export interface EyePairProps extends EyeProps {
+  /**
+   * Space between the two eyes as a percentage of one eye's nominal size, so the
+   * pair keeps its proportions at any size: `0` sets the two drawing areas side
+   * by side, `100` leaves a whole eye's worth of space between them. Default 20.
+   */
+  gap?: number;
+  /**
+   * Mirrored tilt of the two eyes in degrees, positive rotating them outwards:
+   * the left eye turns by `-eyeRotation`, the right one by `+eyeRotation`. Added
+   * to any shared `rotation`, which turns both the same way. Default 0.
+   */
+  eyeRotation?: number;
+  /** Rotation of the whole pair as one unit, in degrees. Default 0. */
+  pairRotation?: number;
+  /** Props for the left eye only; they override the shared ones. */
+  leftEye?: EyeProps;
+  /** Props for the right eye only; they override the shared ones. */
+  rightEye?: EyeProps;
+  /** Accessible name for the pair (rendered on the wrapping element). */
+  title?: string;
+  /** Passed to the wrapping element, not to the eyes. */
+  className?: string;
+  /** Passed to the wrapping element, not to the eyes. */
+  style?: React.CSSProperties;
+}
+
 export declare const Eye: React.FC<EyeProps>;
+export declare const EyePair: React.FC<EyePairProps>;
 export default Eye;

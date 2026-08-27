@@ -1,14 +1,15 @@
 import * as React from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Box, Button, Container, CssBaseline, GlobalStyles, IconButton, Link, Paper,
+  Box, Button, Collapse, Container, CssBaseline, GlobalStyles, IconButton, Link, Paper,
   Slider, Stack, Switch, ToggleButton, ToggleButtonGroup, Tooltip, Typography,
 } from '@mui/material';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import FullscreenIcon from '@mui/icons-material/Fullscreen';
 import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { MuiColorInput } from 'mui-color-input';
-import { Eye } from './components/src/CartoonEyes';
+import { Eye, EyePair } from './components/src/CartoonEyes';
 
 // ---------------------------------------------------------------------------
 // Theme: warm "sticker sheet" look: thick ink outlines, offset shadows,
@@ -20,6 +21,10 @@ const CREAM = '#FBF3E4';
 const PAPER = '#FFFDF8';
 const CORAL = '#FF5D3A';
 const TEAL = '#0E9E9E';
+
+// the page's halftone dots; the sticky stage repeats them so it blends into the
+// background as the settings scroll underneath it on a phone
+const DOTS = 'radial-gradient(#E9DCC5 1.5px, transparent 1.5px)';
 
 const theme = createTheme({
   palette: {
@@ -106,6 +111,11 @@ const theme = createTheme({
 
 // what the demo starts with
 const initialConfig = {
+  // demo-only: one Eye, or two of them through EyePair
+  eyeCount: 1,
+  // EyePair props, in play once there are two eyes
+  gap: 20, eyeRotation: 0, pairRotation: 0,
+  oddEye: false, rightIrisColor: '#F2A03D',
   scleraWidth: 70, scleraHeight: 50, scleraColor: '#FFFFFF',
   eyeOutlineThickness: 0, eyeOutlineColor: '#000000',
   irisWidth: 80, irisHeight: 80, irisColor: '#3E7BFA',
@@ -125,13 +135,55 @@ const initialConfig = {
   movement: 'wander', // demo-only: 'follow' | 'wander' | 'still'
 };
 
-// hex colours are stored (and shown) uppercase wherever they surface
-const upperHex = (color) => (typeof color === 'string' ? color.toUpperCase() : color);
+// hex colours are stored (and shown) uppercase wherever they surface. A colour
+// may carry its alpha as an 8-digit hex (the catchlight picker hands those
+// back); a fully opaque one is trimmed to six digits so the snippet and the
+// share URL never carry a redundant FF
+const upperHex = (color) => {
+  if (typeof color !== 'string') return color;
+  const hex = color.toUpperCase();
+  if (/^#[0-9A-F]{6}FF$/.test(hex)) return hex.slice(0, 7);
+  if (/^#[0-9A-F]{3}F$/.test(hex)) return hex.slice(0, 4);
+  return hex;
+};
 
 const randomNumber = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 
+// how many eye widths a pair spans, gap included: the stage box and each eye's
+// share of it are both measured against this
+const pairSpan = (gap) => 2 + Math.max(0, gap) / 100;
+
 const presets = {
   Default: initialConfig,
+  Googly: {
+    ...initialConfig,
+    // the plastic craft eye: one black disc rattling around behind a clear dome
+    eyeCount: 2, gap: 10,
+    scleraWidth: 96, scleraHeight: 96, scleraColor: '#FFFFFF',
+    eyeOutlineThickness: 4, eyeOutlineColor: '#1A1A1A',
+    irisWidth: 46, irisHeight: 46, irisColor: '#101010',
+    pupilWidth: 100, pupilHeight: 100, pupilColor: '#101010',
+    // the dome's shine is a reflection, not paint: the 8-digit hex carries its
+    // alpha, which the Eye splits into fill and fill-opacity
+    catchlightWidth: 26, catchlightHeight: 26, catchlightPosition: [-45, -50],
+    catchlightColor: '#FFFFFFCC',
+    upperLidSize: 0, lowerLidSize: 0,
+    blinking: false,
+  },
+  Owl: {
+    ...initialConfig,
+    // set close together and tilted out, the way a facial disc frames them
+    eyeCount: 2, gap: 6, eyeRotation: 8,
+    scleraWidth: 86, scleraHeight: 86, scleraColor: '#FFF4D6',
+    eyeOutlineThickness: 5, eyeOutlineColor: '#6B4423',
+    irisWidth: 92, irisHeight: 92, irisColor: '#F2A93B',
+    limbusThickness: 12, limbusColor: '#6B4423',
+    pupilWidth: 62, pupilHeight: 62, pupilColor: '#12100E',
+    catchlightWidth: 18, catchlightHeight: 18, catchlightPosition: [-40, -45],
+    upperLidSize: 6, upperLidColor: '#B98A4B',
+    lowerLidSize: 4, lowerLidColor: '#B98A4B',
+    blinkSpeed: 220, blinkFrequency: 4000,
+  },
   Snake: {
     ...initialConfig,
     scleraWidth: 80, scleraHeight: 70, scleraColor: '#AAFFAA',
@@ -222,18 +274,20 @@ const presets = {
   },
 };
 
-// each preset's default display size, chosen so its sclera fits the fixed-height
-// stage: taller scleras get a smaller box, keeping the drawn eye roughly the same
-// visual size (sclera height ≈ 340px on desktop)
+// each preset's default display size (per eye), chosen so its sclera fits the
+// fixed-height stage: taller scleras get a smaller box, keeping the drawn eye
+// roughly the same visual size (sclera height ≈ 340px on desktop). A pair is
+// sized so the two eyes and their gap fit the stage side by side
 const presetDisplaySize = {
-  Default: 680, Snake: 490, Zombie: 520, Cat: 520,
+  Default: 680, Googly: 300, Owl: 260, Snake: 490, Zombie: 520, Cat: 520,
   Sleepy: 750, Surprised: 410, Alien: 390, Frog: 430,
 };
 
 const defaultEyeSize = presetDisplaySize.Default;
 
-// the Eye component's own defaults, used to emit only non-default props
+// the Eye and EyePair defaults, used to emit only non-default props
 const eyeDefaults = {
+  gap: 20, eyeRotation: 0, pairRotation: 0,
   scleraWidth: 100, scleraHeight: 100, scleraColor: '#FFFFFF',
   eyeOutlineThickness: 0, eyeOutlineColor: '#000000',
   irisSize: 60, irisColor: '#666666',
@@ -246,14 +300,23 @@ const eyeDefaults = {
   blinkSpeed: 80, blinkFrequency: 3000,
 };
 
-// diff a demo config against the Eye component's own defaults, collapsing
-// symmetric width/height (and lid) pairs into their shorthand props; raw values
-// (number | [x, y] | color string | true), shared by the JSX snippet and the
-// share URL. `lensPosition` defaults to the config's resting position, but the
-// snippet passes the live one so the code follows a wandering eye
+// diff a demo config against the component's own defaults, collapsing symmetric
+// width/height (and lid) pairs into their shorthand props; raw values
+// (number | [x, y] | { prop: value } | color string | true), shared by the JSX
+// snippet and the share URL. `lensPosition` defaults to the config's resting
+// position, but the snippet passes the live one so the code follows a wandering
+// eye. With two eyes the pair's own props come first and the right eye's
+// override last, the way they read best in the snippet
 function diffEyeProps(config, lensPosition = config.lensPosition) {
   const props = [];
   const add = (name, value) => props.push({ name, value });
+  const pair = config.eyeCount === 2;
+
+  if (pair) {
+    if (config.gap !== eyeDefaults.gap) add('gap', config.gap);
+    if (config.eyeRotation !== eyeDefaults.eyeRotation) add('eyeRotation', config.eyeRotation);
+    if (config.pairRotation !== eyeDefaults.pairRotation) add('pairRotation', config.pairRotation);
+  }
 
   if (config.scleraWidth !== eyeDefaults.scleraWidth) add('scleraWidth', config.scleraWidth);
   if (config.scleraHeight !== eyeDefaults.scleraHeight) add('scleraHeight', config.scleraHeight);
@@ -344,6 +407,9 @@ function diffEyeProps(config, lensPosition = config.lensPosition) {
     if (config.blinkFrequency !== eyeDefaults.blinkFrequency) add('blinkFrequency', config.blinkFrequency);
     if (config.blinkSqueeze) add('blinkSqueeze', true);
   }
+
+  // the per-eye override goes last: everything above it is what both eyes share
+  if (pair && config.oddEye) add('rightEye', { irisColor: config.rightIrisColor });
   return props;
 }
 
@@ -352,38 +418,49 @@ function buildCodeProps(config, lensPosition) {
     name,
     value: value === true ? null // bare boolean prop
       : Array.isArray(value) ? `{[${value.join(', ')}]}`
-        : typeof value === 'number' ? `{${value}}`
-          : `'${upperHex(value)}'`,
+        : typeof value === 'object' ? `{{ ${Object.entries(value)
+          .map(([key, own]) => `${key}: '${upperHex(own)}'`).join(', ')} }}`
+          : typeof value === 'number' ? `{${value}}`
+            : `'${upperHex(value)}'`,
   }));
   if (config.movement === 'wander') props.push({ name: 'lensMovement', value: null });
   return props;
 }
 
 // the query string carries the same collapsed, non-default props as the JSX
-// snippet (hex colors travel without their '#') plus the demo-only `movement`
-// and display `size`. `movement` is always emitted so a share URL is never
-// bare: a bare URL means the pristine demo (initialConfig), any config param
-// means "Eye defaults + overrides"
+// snippet (hex colors travel without their '#') plus the demo-only `movement`,
+// `eyes` count and display `size`. `movement` is always emitted so a share URL
+// is never bare: a bare URL means the pristine demo (initialConfig), any config
+// param means "component defaults + overrides"
 function buildShareParams(config, eyeSize) {
   const params = new URLSearchParams();
   for (const { name, value } of diffEyeProps(config)) {
+    // the right eye's override travels as the one property the demo can set
+    if (name === 'rightEye') {
+      params.set('rightIrisColor', value.irisColor.replace(/^#/, ''));
+      continue;
+    }
     params.set(name, value === true ? '1'
       : Array.isArray(value) ? value.join(',')
         : typeof value === 'string' ? value.replace(/^#/, '')
           : String(value));
   }
   params.set('movement', config.movement);
+  if (config.eyeCount === 2) params.set('eyes', '2');
   if (eyeSize !== defaultEyeSize) params.set('size', String(eyeSize));
   return params;
 }
 
-// inverse of buildShareParams: expand shorthand params over the Eye defaults;
-// malformed values are ignored so hand-edited URLs degrade gracefully. Returns
-// null when the URL carries no recognised config at all.
+// inverse of buildShareParams: expand shorthand params over the component
+// defaults; malformed values are ignored so hand-edited URLs degrade gracefully.
+// Returns null when the URL carries no recognised config at all.
 function parseShareParams(search) {
   const params = new URLSearchParams(search);
   const config = {
     ...initialConfig, // key order matters: preset matching compares JSON strings
+    eyeCount: 1,
+    gap: eyeDefaults.gap, eyeRotation: eyeDefaults.eyeRotation, pairRotation: eyeDefaults.pairRotation,
+    oddEye: false, rightIrisColor: initialConfig.rightIrisColor,
     scleraWidth: eyeDefaults.scleraWidth, scleraHeight: eyeDefaults.scleraHeight, scleraColor: eyeDefaults.scleraColor,
     eyeOutlineThickness: eyeDefaults.eyeOutlineThickness, eyeOutlineColor: eyeDefaults.eyeOutlineColor,
     irisWidth: eyeDefaults.irisSize, irisHeight: eyeDefaults.irisSize, irisColor: eyeDefaults.irisColor,
@@ -411,7 +488,7 @@ function parseShareParams(search) {
   };
   const color = (name, apply) => {
     const raw = (params.get(name) || '').replace(/^#/, '');
-    if (!/^([0-9a-f]{3}|[0-9a-f]{6})$/i.test(raw)) return;
+    if (!/^([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(raw)) return;
     found = true;
     apply(upperHex(`#${raw}`));
   };
@@ -420,6 +497,16 @@ function parseShareParams(search) {
     found = true;
     apply(!['0', 'false'].includes(params.get(name)));
   };
+
+  if (params.get('eyes') === '2') {
+    found = true;
+    config.eyeCount = 2;
+  }
+  num('gap', 0, 100, (v) => { config.gap = v; });
+  num('eyeRotation', -60, 60, (v) => { config.eyeRotation = v; });
+  num('pairRotation', -180, 180, (v) => { config.pairRotation = v; });
+  // the demo's single left/right override: an odd-coloured right iris
+  color('rightIrisColor', (v) => { config.oddEye = true; config.rightIrisColor = v; });
 
   num('scleraWidth', 0, 100, (v) => { config.scleraWidth = v; });
   num('scleraHeight', 0, 100, (v) => { config.scleraHeight = v; });
@@ -573,13 +660,16 @@ const AxisSlider = ({ label, startLabel, endLabel, value, onChange, disabled = f
   </Box>
 );
 
-const ColorControl = ({ label, value, onChange, sx, disabled = false }) => (
+const ColorControl = ({ label, value, onChange, sx, disabled = false, alpha = false }) => (
   <Box sx={sx}>
     <Typography variant='body2' gutterBottom
       sx={{ fontWeight: 700, color: disabled ? 'text.disabled' : 'text.primary' }}>{label}</Typography>
     {/* the field keeps whatever case was typed in its own state, so the uppercase
-        shown here is CSS; the value handed back to the config is uppercased too */}
-    <MuiColorInput format='hex' isAlphaHidden size='small' value={value} disabled={disabled}
+        shown here is CSS; the value handed back to the config is uppercased too.
+        An alpha field reads and writes the 8-digit HEXA form, which the Eye
+        splits into fill and fill-opacity */}
+    <MuiColorInput format={alpha ? 'hex8' : 'hex'} isAlphaHidden={!alpha}
+      size='small' value={value} disabled={disabled}
       onChange={(v) => onChange(upperHex(v))}
       sx={{
         width: '100%',
@@ -593,16 +683,44 @@ const SwitchControl = ({ label, checked, onChange, disabled = false }) => (
     <Typography variant='body2' sx={{ fontWeight: 700, color: disabled ? 'text.disabled' : 'text.primary' }}>
       {label}
     </Typography>
-    <Switch checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
+    {/* the label sits beside the switch rather than wrapping it, so the switch
+        carries the name itself */}
+    <Switch checked={checked} disabled={disabled} slotProps={{ input: { 'aria-label': label } }}
+      onChange={(e) => onChange(e.target.checked)} />
   </Stack>
 );
 
-const Card = ({ title, children, sx }) => (
-  <Paper sx={{ p: 2.5, ...sx }} className='pop-in'>
-    <Typography variant='h6' sx={{ mb: 1.5 }}>{title}</Typography>
-    {children}
-  </Paper>
-);
+// the settings are grouped into collapsible sections so the growing API stays
+// navigable and the stage beside them keeps its share of the screen
+const Section = ({ title, subtitle, defaultOpen = false, children, sx }) => {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <Paper className='pop-in' sx={{ overflow: 'hidden', ...sx }}>
+      <Box component='button' type='button' aria-expanded={open} onClick={() => setOpen((v) => !v)}
+        sx={{
+          width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          gap: 1, px: 2.5, py: 1.75, cursor: 'pointer', textAlign: 'left',
+          font: 'inherit', color: 'inherit', border: 0, background: 'none',
+          '&:hover': { backgroundColor: '#FFF3DE' },
+        }}>
+        <Typography variant='h6'>{title}</Typography>
+        <Stack direction='row' spacing={1} sx={{ alignItems: 'center' }}>
+          {subtitle && !open ? (
+            <Typography variant='caption' sx={{ color: 'text.secondary', fontWeight: 700 }}>{subtitle}</Typography>
+          ) : null}
+          <ExpandMoreIcon sx={{
+            display: 'block',
+            transform: open ? 'rotate(180deg)' : 'none',
+            transition: 'transform 200ms ease',
+          }} />
+        </Stack>
+      </Box>
+      <Collapse in={open}>
+        <Box sx={{ px: 2.5, pb: 2.5 }}>{children}</Box>
+      </Collapse>
+    </Paper>
+  );
+};
 
 const CopyButton = ({ getText, label = 'Copy', color = 'primary' }) => {
   const [copied, setCopied] = useState(false);
@@ -618,7 +736,7 @@ const CopyButton = ({ getText, label = 'Copy', color = 'primary' }) => {
   );
 };
 
-// eye props derived from a demo config (shared by hero + previews)
+// eye props derived from a demo config (shared by the stage and the previews)
 const eyeProps = (config, lensPosition) => ({
   scleraWidth: config.scleraWidth,
   scleraHeight: config.scleraHeight,
@@ -650,9 +768,39 @@ const eyeProps = (config, lensPosition) => ({
   blinkSpeed: config.blinkSpeed,
   blinkFrequency: config.blinkFrequency,
   blinkSqueeze: config.blinkSqueeze,
-  lensMovement: config.movement === 'wander',
   lensPosition,
 });
+
+// the stage and the preset previews draw the same thing: one Eye, or the real
+// EyePair when the config asks for two. The demo drives the movement itself (so
+// the sliders can track it), which is why lensMovement stays off here. Each eye
+// takes its share of the box, so a pair always fits the width it is given
+const StageEyes = ({ config, lensPosition, lensSpeed = 600 }) => {
+  const shared = { ...eyeProps(config, lensPosition), lensMovement: false, lensSpeed };
+  if (config.eyeCount !== 2) return <Eye {...shared} width='100%' height='100%' />;
+  return (
+    <EyePair {...shared}
+      width={`${(100 / pairSpan(config.gap)).toFixed(3)}%`} height='100%'
+      gap={config.gap} eyeRotation={config.eyeRotation} pairRotation={config.pairRotation}
+      rightEye={config.oddEye ? { irisColor: config.rightIrisColor } : undefined}
+      style={{ display: 'flex', width: '100%', height: '100%', justifyContent: 'center' }} />
+  );
+};
+
+// the box the eyes are drawn in: square for one eye, as wide as the pair spans
+// for two, and never wider than the stage, so a pair scales down to fit instead
+// of running off the edges
+const eyeBoxSx = (config, eyeSize, xsEyeBox) => {
+  const span = config.eyeCount === 2 ? pairSpan(config.gap) : 1;
+  return {
+    flex: '0 0 auto',
+    aspectRatio: String(span),
+    width: {
+      xs: `min(calc(${xsEyeBox} * ${span}), 100%)`,
+      md: `min(${(eyeSize * span).toFixed(1)}px, 100%)`,
+    },
+  };
+};
 
 // ---------------------------------------------------------------------------
 // App
@@ -661,11 +809,11 @@ const eyeProps = (config, lensPosition) => ({
 function App() {
   const [config, setConfig] = useState(() => parseShareParams(window.location.search) ?? initialConfig);
   const set = (key) => (value) => setConfig((c) => ({ ...c, [key]: value }));
-  const [eyeCount, setEyeCount] = useState(1); // demo-only, not an Eye prop
   const [eyeSize, setEyeSize] = useState( // demo-only display size in px
     () => parseShareSize(window.location.search) ?? defaultEyeSize);
   // the stage crops tall eyes by default; expanding it reveals the whole drawing area
   const [stageExpanded, setStageExpanded] = useState(false);
+  const pairMode = config.eyeCount === 2;
 
   // shareable URL for the current config; the address bar follows it (debounced)
   // once the user changes anything. The pristine-load values are compared by
@@ -685,7 +833,8 @@ function App() {
     return () => clearTimeout(timeoutId);
   }, [config, eyeSize, shareUrl]);
 
-  // wander: one shared random target so all eyes look the same way in sync
+  // wander: one shared random target, so the stage and the sliders agree on
+  // where the eyes are looking (EyePair does the same for its own two eyes)
   const [wanderLens, setWanderLens] = useState([0, 0]);
   useEffect(() => {
     if (config.movement !== 'wander') return;
@@ -746,15 +895,6 @@ function App() {
   }));
   // both axes need something to place before they mean anything
   const catchlightOn = config.catchlightWidth > 0 && config.catchlightHeight > 0;
-  const heroEye = {
-    ...eyeProps(config, lensPosition),
-    // the demo drives all movement itself (so multiple eyes stay in sync);
-    // in follow mode the rAF loop already eases, so the CSS transition is disabled
-    lensMovement: false,
-    lensSpeed: config.movement === 'follow' ? 0 : 600,
-    width: '100%',
-    height: '100%',
-  };
 
   // on mobile the eye box scales with the viewport (52vw at the 680px default) so
   // the stage keeps the same proportions for every preset size
@@ -766,10 +906,11 @@ function App() {
   const codeProps = useMemo(
     () => buildCodeProps(config, [lensX, lensY]),
     [config, lensX, lensY]);
+  const componentName = pairMode ? 'EyePair' : 'Eye';
   const codeText = useMemo(() => {
     const inner = codeProps.map((p) => `  ${p.name}${p.value === null ? '' : `=${p.value}`}`).join('\n');
-    return `import { Eye } from 'cartoon-eyes';\n\n<Eye\n${inner}\n/>`;
-  }, [codeProps]);
+    return `import { ${componentName} } from 'cartoon-eyes';\n\n<${componentName}\n${inner}\n/>`;
+  }, [codeProps, componentName]);
 
   const activePreset = Object.keys(presets).find(
     (name) => JSON.stringify(presets[name]) === JSON.stringify(config)
@@ -781,8 +922,11 @@ function App() {
       <GlobalStyles styles={{
         body: {
           backgroundColor: CREAM,
-          backgroundImage: `radial-gradient(#E9DCC5 1.5px, transparent 1.5px)`,
+          backgroundImage: DOTS,
           backgroundSize: '22px 22px',
+          // fixed, so the sticky stage's own copy of the pattern lines up with
+          // the page's while everything scrolls beneath it
+          backgroundAttachment: 'fixed',
         },
         '@keyframes popIn': {
           from: { opacity: 0, transform: 'translateY(14px)' },
@@ -820,139 +964,177 @@ function App() {
           </Stack>
         </Stack>
 
-        {/* hero eyes */}
-        <Paper className='pop-in' sx={{
-          position: 'relative',
-          mb: 3, p: 0, overflow: 'hidden', bgcolor: '#FFE8CF',
-          backgroundImage: `radial-gradient(rgba(41,34,58,0.12) 2px, transparent 2px)`,
-          backgroundSize: '18px 18px',
+        {/* the stage keeps its place while the settings beside (or below) it
+            scroll: two columns from md up, and a pinned band on a phone */}
+        <Box sx={{
+          display: { xs: 'block', md: 'grid' },
+          gridTemplateColumns: { md: 'minmax(0, 6fr) minmax(0, 5fr)' },
+          gridTemplateAreas: { md: '"presets presets" "stage settings"' },
+          alignItems: 'start',
+          columnGap: 3, rowGap: 3,
         }}>
-          <Tooltip title={stageExpanded ? 'Shrink the stage' : 'Expand the stage'} placement='left'>
-            <IconButton size='small' aria-pressed={stageExpanded}
-              aria-label={stageExpanded ? 'Shrink the stage' : 'Expand the stage'}
-              onClick={() => setStageExpanded((v) => !v)}
-              sx={{
-                position: 'absolute', top: 12, right: 12, zIndex: 1,
-                bgcolor: PAPER, color: INK, borderRadius: 2,
-                border: `2.5px solid ${INK}`, boxShadow: `3px 3px 0 ${INK}`,
-                transition: 'transform 120ms ease, box-shadow 120ms ease',
-                '&:hover': {
-                  bgcolor: '#FFF3DE', boxShadow: `4px 4px 0 ${INK}`,
-                  transform: 'translate(-1px, -1px)',
-                },
-                '&:active': { boxShadow: `1px 1px 0 ${INK}`, transform: 'translate(2px, 2px)' },
-              }}>
-              {stageExpanded ? <FullscreenExitIcon fontSize='small' /> : <FullscreenIcon fontSize='small' />}
-            </IconButton>
-          </Tooltip>
-          <Box ref={eyesRef} sx={{
-            display: 'flex', justifyContent: 'center', alignItems: 'center',
-            gap: { xs: 1, md: 2 },
-            // collapsed: a fixed height tall enough for the default-size eye, with
-            // larger sizes bleeding past the edges (cropped by overflow hidden).
-            // expanded: the square eye box itself, which is exactly what a sclera
-            // height of 100 fills, plus breathing room above and below
-            height: stageExpanded
-              ? { xs: `max(28vw, ${xsEyeBox} + 24px)`, md: Math.max(360, eyeSize + 72) }
-              : { xs: '28vw', md: 360 },
-            transition: 'height 350ms cubic-bezier(0.4, 0, 0.2, 1)',
-            overflow: 'hidden',
+
+          {/* stage */}
+          <Box sx={{
+            gridArea: { md: 'stage' },
+            position: 'sticky', top: { xs: 0, md: 16 }, zIndex: 3,
+            // on a phone the stage pins to the top of the viewport as a band
+            // that spans the whole width, carrying the page's own dots so the
+            // settings slide out of sight cleanly underneath it
+            mx: { xs: -2, sm: -3, md: 0 },
+            px: { xs: 2, sm: 3, md: 0 },
+            py: { xs: 1.5, md: 0 },
+            mb: { xs: 2, md: 0 },
+            backgroundColor: { xs: CREAM, md: 'transparent' },
+            backgroundImage: { xs: DOTS, md: 'none' },
+            backgroundSize: '22px 22px',
+            backgroundAttachment: 'fixed',
           }}>
-            {Array.from({ length: eyeCount }, (_, i) => (
-              // the key includes eyeCount so both eyes remount together when the
-              // count changes, keeping their blink timers in sync.
-              // square boxes: the eye SVG keeps its 1:1 drawing aspect, so the
-              // slider scales uniformly; flex must never shrink the boxes
-              <Box key={`${eyeCount}-${i}`} sx={{
-                flex: '0 0 auto',
-                width: { xs: xsEyeBox, md: eyeSize },
-                height: { xs: xsEyeBox, md: eyeSize },
+            <Paper className='pop-in' sx={{
+              position: 'relative',
+              p: 0, overflow: 'hidden', bgcolor: '#FFE8CF',
+              backgroundImage: `radial-gradient(rgba(41,34,58,0.12) 2px, transparent 2px)`,
+              backgroundSize: '18px 18px',
+            }}>
+              <Tooltip title={stageExpanded ? 'Shrink the stage' : 'Expand the stage'} placement='left'>
+                <IconButton size='small' aria-pressed={stageExpanded}
+                  aria-label={stageExpanded ? 'Shrink the stage' : 'Expand the stage'}
+                  onClick={() => setStageExpanded((v) => !v)}
+                  sx={{
+                    position: 'absolute', top: 12, right: 12, zIndex: 1,
+                    bgcolor: PAPER, color: INK, borderRadius: 2,
+                    border: `2.5px solid ${INK}`, boxShadow: `3px 3px 0 ${INK}`,
+                    transition: 'transform 120ms ease, box-shadow 120ms ease',
+                    '&:hover': {
+                      bgcolor: '#FFF3DE', boxShadow: `4px 4px 0 ${INK}`,
+                      transform: 'translate(-1px, -1px)',
+                    },
+                    '&:active': { boxShadow: `1px 1px 0 ${INK}`, transform: 'translate(2px, 2px)' },
+                  }}>
+                  {stageExpanded ? <FullscreenExitIcon fontSize='small' /> : <FullscreenIcon fontSize='small' />}
+                </IconButton>
+              </Tooltip>
+              <Box ref={eyesRef} sx={{
+                display: 'flex', justifyContent: 'center', alignItems: 'center',
+                // collapsed: a fixed height tall enough for the default-size eye,
+                // with larger sizes bleeding past the edges (cropped by overflow
+                // hidden). expanded: the whole eye box, plus breathing room, and
+                // never taller than the screen it has to stay pinned to
+                height: stageExpanded
+                  ? {
+                    xs: `min(max(28vw, calc(${xsEyeBox} + 24px)), 42vh)`,
+                    md: `min(${Math.max(360, eyeSize + 72)}px, calc(100vh - 96px))`,
+                  }
+                  : { xs: '28vw', md: 360 },
+                transition: 'height 350ms cubic-bezier(0.4, 0, 0.2, 1)',
+                overflow: 'hidden',
               }}>
-                <Eye {...heroEye} />
+                <Box sx={eyeBoxSx(config, eyeSize, xsEyeBox)}>
+                  <StageEyes config={config} lensPosition={lensPosition}
+                    // in follow mode the rAF loop already eases, so the CSS
+                    // transition would only lag behind it
+                    lensSpeed={config.movement === 'follow' ? 0 : 600} />
+                </Box>
               </Box>
+            </Paper>
+          </Box>
+
+          {/* presets: a grid rather than a wrapping row, so the last few never
+              stretch across the width on their own */}
+          <Box className='pop-in' sx={{
+            gridArea: { md: 'presets' }, mb: { xs: 2, md: 0 }, animationDelay: '80ms',
+            display: 'grid', gap: 1.5,
+            gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+          }}>
+            {Object.entries(presets).map(([name, presetConfig]) => (
+              <Button key={name} variant='contained' disableElevation
+                onClick={() => { setConfig(presetConfig); setEyeSize(presetDisplaySize[name]); }}
+                sx={{
+                  bgcolor: activePreset === name ? CORAL : PAPER,
+                  color: activePreset === name ? PAPER : INK,
+                  '&:hover': { bgcolor: activePreset === name ? CORAL : '#FFF3DE' },
+                  display: 'flex', gap: 1, alignItems: 'center', justifyContent: 'center',
+                  flexGrow: 1,
+                }}>
+                <Box sx={{
+                  width: 34, display: 'flex', alignItems: 'center', flexShrink: 0,
+                  aspectRatio: presetConfig.eyeCount === 2 ? String(pairSpan(presetConfig.gap)) : '1',
+                }}>
+                  <StageEyes config={{ ...presetConfig, blinking: false, movement: 'still' }}
+                    lensPosition={[0, 0]} lensSpeed={0} />
+                </Box>
+                {name}
+              </Button>
             ))}
           </Box>
-        </Paper>
 
-        {/* presets */}
-        <Stack direction='row' spacing={1.5} useFlexGap className='pop-in'
-          sx={{ mb: 3, animationDelay: '80ms', flexWrap: 'wrap' }}>
-          {Object.entries(presets).map(([name, presetConfig]) => (
-            <Button key={name} variant='contained' disableElevation
-              onClick={() => { setConfig(presetConfig); setEyeSize(presetDisplaySize[name]); }}
-              sx={{
-                bgcolor: activePreset === name ? CORAL : PAPER,
-                color: activePreset === name ? PAPER : INK,
-                '&:hover': { bgcolor: activePreset === name ? CORAL : '#FFF3DE' },
-                display: 'flex', gap: 1, alignItems: 'center', justifyContent: 'center',
-                flexGrow: 1,
-              }}>
-              <Box sx={{ width: 34, height: 34, display: 'flex' }}>
-                <Eye {...eyeProps({ ...presetConfig, blinking: false, movement: 'still' }, [0, 0])}
-                  width='100%' height='100%' />
-              </Box>
-              {name}
-            </Button>
-          ))}
-        </Stack>
+          {/* settings */}
+          <Stack spacing={2} sx={{ gridArea: { md: 'settings' } }}>
 
-        {/* controls */}
-        <Box sx={{
-          display: 'grid', gap: 3, mb: 3,
-          gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' },
-        }}>
-          <Card title='Shape' sx={{ animationDelay: '140ms' }}>
-            <Stack spacing={1}>
-              <ControlSlider label='Sclera width' value={config.scleraWidth} onChange={set('scleraWidth')} />
-              <ControlSlider label='Sclera height' value={config.scleraHeight} onChange={set('scleraHeight')} />
-              <ControlSlider label='Iris width' value={config.irisWidth} onChange={set('irisWidth')} />
-              <ControlSlider label='Iris height' value={config.irisHeight} onChange={set('irisHeight')} />
-              {/* the ring is taken out of the iris, so it is a share of the iris
-                  radius rather than something added around it */}
-              <ControlSlider label='Limbus' value={config.limbusThickness} onChange={set('limbusThickness')} />
-              <ControlSlider label='Pupil width' value={config.pupilWidth} onChange={set('pupilWidth')} />
-              <ControlSlider label='Pupil height' value={config.pupilHeight} onChange={set('pupilHeight')} />
-              <ControlSlider label='Upper eyelid' value={config.upperLidSize} onChange={set('upperLidSize')} />
-              <ControlSlider label='Lower eyelid' value={config.lowerLidSize} onChange={set('lowerLidSize')} />
-              {/* the track grows out of upright, with a mark every quarter turn */}
-              <ControlSlider label='Rotation' value={config.rotation} onChange={set('rotation')}
-                min={-180} max={180} unit='°' origin={0}
-                marks={[-180, -90, 0, 90, 180].map((value) => ({ value }))} />
-            </Stack>
-          </Card>
-
-          <Card title='Colours' sx={{ animationDelay: '200ms' }}>
-            {/* two columns wherever the swatch fields still fit, keeping the card
-                short and leaving room for more settings */}
-            <Box sx={{
-              display: 'grid', gap: 2,
-              gridTemplateColumns: 'repeat(auto-fit, minmax(132px, 1fr))',
-            }}>
-              <ColorControl label='Sclera' value={config.scleraColor} onChange={set('scleraColor')}
-                sx={{ gridColumn: '1 / -1' }} />
-              <ColorControl label='Iris' value={config.irisColor} onChange={set('irisColor')} />
-              <ColorControl label='Limbus' value={config.limbusColor} onChange={set('limbusColor')}
-                disabled={config.limbusThickness === 0} />
-              <ColorControl label='Pupil' value={config.pupilColor} onChange={set('pupilColor')} />
-              <ColorControl label='Upper eyelid' value={config.upperLidColor} onChange={set('upperLidColor')} />
-              <ColorControl label='Lower eyelid' value={config.lowerLidColor} onChange={set('lowerLidColor')} />
-            </Box>
-          </Card>
-
-          <Card title='Behaviour' sx={{ animationDelay: '260ms' }}>
-            <Stack spacing={2}>
-              <Box>
-                <Typography variant='body2' gutterBottom sx={{ fontWeight: 700 }}>Eyes</Typography>
-                <ToggleButtonGroup exclusive fullWidth size='small' value={eyeCount}
-                  onChange={(e, v) => v && setEyeCount(v)}>
-                  <ToggleButton value={1}>One</ToggleButton>
-                  <ToggleButton value={2}>Two</ToggleButton>
+            <Section title='Eyes' defaultOpen subtitle={pairMode ? 'a pair' : 'one eye'}
+              sx={{ animationDelay: '140ms' }}>
+              <Stack spacing={2}>
+                <ToggleButtonGroup exclusive fullWidth size='small' value={config.eyeCount}
+                  onChange={(e, v) => v && set('eyeCount')(v)}>
+                  <ToggleButton value={1}>One eye</ToggleButton>
+                  <ToggleButton value={2}>A pair</ToggleButton>
                 </ToggleButtonGroup>
+                <ControlSlider label='Display size' value={eyeSize} onChange={setEyeSize}
+                  min={140} max={900} step={10} unit=' px' />
+                {/* the EyePair-only controls appear with the second eye */}
+                <Collapse in={pairMode}>
+                  <Stack spacing={1.5} sx={{ pt: 0.5 }}>
+                    {/* the gap is a share of one eye, so the pair keeps its
+                        proportions at any display size */}
+                    <ControlSlider label='Gap' value={config.gap} onChange={set('gap')}
+                      min={0} max={100} unit='%' disabled={!pairMode} />
+                    {/* positive tilts both eyes outwards, mirrored */}
+                    <ControlSlider label='Outward eye rotation' value={config.eyeRotation}
+                      onChange={set('eyeRotation')} min={-60} max={60} unit='°' origin={0}
+                      marks={[{ value: 0 }]} disabled={!pairMode} />
+                    <ControlSlider label='Pair rotation' value={config.pairRotation}
+                      onChange={set('pairRotation')} min={-180} max={180} unit='°' origin={0}
+                      marks={[-180, -90, 0, 90, 180].map((value) => ({ value }))} disabled={!pairMode} />
+                    {/* one per-eye override, to show what leftEye / rightEye do */}
+                    <SwitchControl label='Odd right eye' checked={config.oddEye}
+                      onChange={set('oddEye')} disabled={!pairMode} />
+                    <ColorControl label='Right iris' value={config.rightIrisColor}
+                      onChange={set('rightIrisColor')} disabled={!pairMode || !config.oddEye} />
+                  </Stack>
+                </Collapse>
+              </Stack>
+            </Section>
+
+            <Section title='Shape' defaultOpen sx={{ animationDelay: '180ms' }}>
+              <Stack spacing={1}>
+                <ControlSlider label='Sclera width' value={config.scleraWidth} onChange={set('scleraWidth')} />
+                <ControlSlider label='Sclera height' value={config.scleraHeight} onChange={set('scleraHeight')} />
+                <ControlSlider label='Iris width' value={config.irisWidth} onChange={set('irisWidth')} />
+                <ControlSlider label='Iris height' value={config.irisHeight} onChange={set('irisHeight')} />
+                <ControlSlider label='Pupil width' value={config.pupilWidth} onChange={set('pupilWidth')} />
+                <ControlSlider label='Pupil height' value={config.pupilHeight} onChange={set('pupilHeight')} />
+                {/* the track grows out of upright, with a mark every quarter turn */}
+                <ControlSlider label='Rotation' value={config.rotation} onChange={set('rotation')}
+                  min={-180} max={180} unit='°' origin={0}
+                  marks={[-180, -90, 0, 90, 180].map((value) => ({ value }))} />
+              </Stack>
+            </Section>
+
+            <Section title='Colours' defaultOpen sx={{ animationDelay: '220ms' }}>
+              {/* two columns wherever the swatch fields still fit */}
+              <Box sx={{
+                display: 'grid', gap: 2,
+                gridTemplateColumns: 'repeat(auto-fit, minmax(132px, 1fr))',
+              }}>
+                <ColorControl label='Sclera' value={config.scleraColor} onChange={set('scleraColor')}
+                  sx={{ gridColumn: '1 / -1' }} />
+                <ColorControl label='Iris' value={config.irisColor} onChange={set('irisColor')} />
+                <ColorControl label='Pupil' value={config.pupilColor} onChange={set('pupilColor')} />
               </Box>
-              <ControlSlider label='Display size' value={eyeSize} onChange={setEyeSize}
-                min={140} max={900} step={10} unit=' px' />
+            </Section>
+
+            <Section title='Movement' defaultOpen sx={{ animationDelay: '260ms' }}>
               <Box>
-                <Typography variant='body2' gutterBottom sx={{ fontWeight: 700 }}>Eye movement</Typography>
                 <ToggleButtonGroup exclusive fullWidth size='small' value={config.movement}
                   onChange={(e, v) => v && set('movement')(v)}>
                   <ToggleButton value='wander'>Wander</ToggleButton>
@@ -987,121 +1169,155 @@ function App() {
                     value={lensY} onChange={setLensAxis(1)}
                     disabled={!stillEye} smooth={config.movement === 'wander'} />
                 </Box>
+                {pairMode && (
+                  <Typography variant='caption' sx={{ display: 'block', mt: 1.5, color: 'text.secondary' }}>
+                    Both eyes look the same way: a pair looking right looks right.
+                  </Typography>
+                )}
               </Box>
-              <SwitchControl label='Blinking' checked={config.blinking} onChange={set('blinking')} />
-              <SwitchControl label='Blink squeeze' checked={config.blinkSqueeze} onChange={set('blinkSqueeze')}
-                disabled={!config.blinking} />
-              <ControlSlider label='Blink speed' value={config.blinkSpeed} onChange={set('blinkSpeed')}
-                min={30} max={400} step={10} unit=' ms' disabled={!config.blinking} />
-              <ControlSlider label='Blink every' value={config.blinkFrequency} onChange={set('blinkFrequency')}
-                min={500} max={8000} step={100} unit=' ms' disabled={!config.blinking} />
-            </Stack>
-          </Card>
+            </Section>
 
-          <Card title='Catchlight' sx={{ animationDelay: '320ms' }}>
-            <Stack spacing={1}>
-              {/* the glint measures against the whole iris, limbus and all, so a
-                  limbus never resizes or shifts it */}
-              <ControlSlider label='Width' value={config.catchlightWidth} onChange={set('catchlightWidth')} />
-              <ControlSlider label='Height' value={config.catchlightHeight} onChange={set('catchlightHeight')} />
-              <Box>
-                <Typography variant='body2' sx={{
-                  mt: 1, mb: 0.5, fontWeight: 700,
-                  color: catchlightOn ? 'text.primary' : 'text.disabled',
-                }}>
-                  Position
-                </Typography>
-                {/* placed inside the iris the way the eye is placed inside the
-                    sclera, so it gets the same pair of centre-notched axes */}
+            <Section title='Blinking' subtitle={config.blinking ? 'on' : 'off'}
+              sx={{ animationDelay: '300ms' }}>
+              <Stack spacing={1.5}>
+                <SwitchControl label='Blinking' checked={config.blinking} onChange={set('blinking')} />
+                <SwitchControl label='Blink squeeze' checked={config.blinkSqueeze} onChange={set('blinkSqueeze')}
+                  disabled={!config.blinking} />
+                <ControlSlider label='Blink speed' value={config.blinkSpeed} onChange={set('blinkSpeed')}
+                  min={30} max={400} step={10} unit=' ms' disabled={!config.blinking} />
+                <ControlSlider label='Blink every' value={config.blinkFrequency} onChange={set('blinkFrequency')}
+                  min={500} max={8000} step={100} unit=' ms' disabled={!config.blinking} />
+                {pairMode && (
+                  <Typography variant='caption' sx={{ color: 'text.secondary' }}>
+                    A pair blinks on one clock, so both lids come down together.
+                  </Typography>
+                )}
+              </Stack>
+            </Section>
+
+            <Section title='Eyelids & eyeliner' sx={{ animationDelay: '340ms' }}>
+              <Stack spacing={1}>
+                <ControlSlider label='Upper eyelid' value={config.upperLidSize} onChange={set('upperLidSize')} />
+                <ControlSlider label='Lower eyelid' value={config.lowerLidSize} onChange={set('lowerLidSize')} />
+                {/* the liner belongs to the lid margins, so it rides the blink */}
+                <ControlSlider label='Upper eyeliner' value={config.upperEyelinerSize}
+                  onChange={set('upperEyelinerSize')} />
+                <ControlSlider label='Lower eyeliner' value={config.lowerEyelinerSize}
+                  onChange={set('lowerEyelinerSize')} />
                 <Box sx={{
-                  display: 'grid', columnGap: 3, rowGap: 0.5,
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(128px, 1fr))',
+                  display: 'grid', gap: 2, pt: 1,
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(132px, 1fr))',
                 }}>
-                  <AxisSlider label='Catchlight position, horizontal' startLabel='Left' endLabel='Right'
-                    value={config.catchlightPosition[0]} onChange={setCatchlightAxis(0)}
-                    disabled={!catchlightOn} />
-                  <AxisSlider label='Catchlight position, vertical' startLabel='Up' endLabel='Down'
-                    value={config.catchlightPosition[1]} onChange={setCatchlightAxis(1)}
-                    disabled={!catchlightOn} />
+                  <ColorControl label='Upper eyelid' value={config.upperLidColor}
+                    onChange={set('upperLidColor')} />
+                  <ColorControl label='Lower eyelid' value={config.lowerLidColor}
+                    onChange={set('lowerLidColor')} />
+                  <ColorControl label='Upper eyeliner' value={config.upperEyelinerColor}
+                    onChange={set('upperEyelinerColor')} disabled={config.upperEyelinerSize === 0} />
+                  <ColorControl label='Lower eyeliner' value={config.lowerEyelinerColor}
+                    onChange={set('lowerEyelinerColor')} disabled={config.lowerEyelinerSize === 0} />
                 </Box>
-              </Box>
-              <ColorControl label='Colour' value={config.catchlightColor} onChange={set('catchlightColor')}
-                disabled={!catchlightOn} sx={{ pt: 1 }} />
-            </Stack>
-          </Card>
+              </Stack>
+            </Section>
 
-          <Card title='Eyeliner' sx={{ animationDelay: '380ms' }}>
-            <Stack spacing={1}>
-              {/* the liner belongs to the lid margins, so it rides the blink */}
-              <ControlSlider label='Upper eyeliner' value={config.upperEyelinerSize}
-                onChange={set('upperEyelinerSize')} />
-              <ControlSlider label='Lower eyeliner' value={config.lowerEyelinerSize}
-                onChange={set('lowerEyelinerSize')} />
-              <Box sx={{
-                display: 'grid', gap: 2, pt: 1,
-                gridTemplateColumns: 'repeat(auto-fit, minmax(132px, 1fr))',
+            <Section title='Limbus & catchlight' sx={{ animationDelay: '380ms' }}>
+              <Stack spacing={1}>
+                {/* the ring is taken out of the iris, so it is a share of the
+                    iris radius rather than something added around it */}
+                <ControlSlider label='Limbus' value={config.limbusThickness} onChange={set('limbusThickness')} />
+                <ColorControl label='Limbus colour' value={config.limbusColor} onChange={set('limbusColor')}
+                  disabled={config.limbusThickness === 0} sx={{ pt: 1, pb: 1 }} />
+                {/* the glint measures against the whole iris, limbus and all, so
+                    a limbus never resizes or shifts it */}
+                <ControlSlider label='Catchlight width' value={config.catchlightWidth}
+                  onChange={set('catchlightWidth')} />
+                <ControlSlider label='Catchlight height' value={config.catchlightHeight}
+                  onChange={set('catchlightHeight')} />
+                <Box>
+                  <Typography variant='body2' sx={{
+                    mt: 1, mb: 0.5, fontWeight: 700,
+                    color: catchlightOn ? 'text.primary' : 'text.disabled',
+                  }}>
+                    Catchlight position
+                  </Typography>
+                  {/* placed inside the iris the way the eye is placed inside the
+                      sclera, so it gets the same pair of centre-notched axes */}
+                  <Box sx={{
+                    display: 'grid', columnGap: 3, rowGap: 0.5,
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(128px, 1fr))',
+                  }}>
+                    <AxisSlider label='Catchlight position, horizontal' startLabel='Left' endLabel='Right'
+                      value={config.catchlightPosition[0]} onChange={setCatchlightAxis(0)}
+                      disabled={!catchlightOn} />
+                    <AxisSlider label='Catchlight position, vertical' startLabel='Up' endLabel='Down'
+                      value={config.catchlightPosition[1]} onChange={setCatchlightAxis(1)}
+                      disabled={!catchlightOn} />
+                  </Box>
+                </Box>
+                {/* a glint is usually a touch transparent, so this one field
+                    carries an alpha channel */}
+                <ColorControl label='Catchlight colour' value={config.catchlightColor} alpha
+                  onChange={set('catchlightColor')} disabled={!catchlightOn} sx={{ pt: 1 }} />
+              </Stack>
+            </Section>
+
+            <Section title='Eye outline' sx={{ animationDelay: '420ms' }}>
+              <Stack spacing={1}>
+                {/* like the limbus, the ring is taken out of the sclera rather
+                    than added around it, so the eye never outgrows the drawing area */}
+                <ControlSlider label='Thickness' value={config.eyeOutlineThickness}
+                  onChange={set('eyeOutlineThickness')} />
+                <ColorControl label='Colour' value={config.eyeOutlineColor} onChange={set('eyeOutlineColor')}
+                  disabled={config.eyeOutlineThickness === 0} sx={{ pt: 1 }} />
+              </Stack>
+            </Section>
+
+            {/* generated code */}
+            <Paper className='pop-in' sx={{ p: 2.5, bgcolor: INK, color: CREAM, animationDelay: '460ms' }}>
+              <Stack direction='row' sx={{
+                mb: 1.5, gap: 1, justifyContent: 'space-between',
+                alignItems: 'center', flexWrap: 'wrap',
               }}>
-                <ColorControl label='Upper' value={config.upperEyelinerColor}
-                  onChange={set('upperEyelinerColor')} disabled={config.upperEyelinerSize === 0} />
-                <ColorControl label='Lower' value={config.lowerEyelinerColor}
-                  onChange={set('lowerEyelinerColor')} disabled={config.lowerEyelinerSize === 0} />
-              </Box>
-            </Stack>
-          </Card>
-
-          <Card title='Eye outline' sx={{ animationDelay: '440ms' }}>
-            <Stack spacing={1}>
-              {/* like the limbus, the ring is taken out of the sclera rather than
-                  added around it, so the eye never outgrows the drawing area */}
-              <ControlSlider label='Thickness' value={config.eyeOutlineThickness}
-                onChange={set('eyeOutlineThickness')} />
-              <ColorControl label='Colour' value={config.eyeOutlineColor} onChange={set('eyeOutlineColor')}
-                disabled={config.eyeOutlineThickness === 0} sx={{ pt: 1 }} />
-            </Stack>
-          </Card>
-        </Box>
-
-        {/* generated code */}
-        <Paper className='pop-in' sx={{ p: 2.5, bgcolor: INK, color: CREAM, animationDelay: '500ms' }}>
-          <Stack direction='row' sx={{ mb: 1.5, justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant='h6' sx={{ color: CREAM }}>Your eye, as code</Typography>
-            <Stack direction='row' spacing={1}>
-              <CopyButton getText={() => shareUrl} label='Copy link' color='secondary' />
-              <CopyButton getText={() => codeText} label='Copy JSX' />
-            </Stack>
-          </Stack>
-          <Box component='pre' sx={{
-            m: 0, p: 2, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.06)',
-            fontFamily: "'Fira Code', monospace", fontSize: 13.5, lineHeight: 1.7,
-            overflowX: 'auto',
-          }}>
-            <code>
-              <Box component='span' sx={{ color: '#9D8CFF' }}>import</Box>
-              {' { Eye } '}
-              <Box component='span' sx={{ color: '#9D8CFF' }}>from</Box>
-              <Box component='span' sx={{ color: '#FFD166' }}>{" 'cartoon-eyes'"}</Box>
-              {';\n\n'}
-              <Box component='span' sx={{ color: '#7FD8D8' }}>{'<Eye'}</Box>
-              {'\n'}
-              {codeProps.map((p) => (
-                <React.Fragment key={p.name}>
-                  {'  '}
-                  <Box component='span' sx={{ color: '#FFA07A' }}>{p.name}</Box>
-                  {p.value !== null && (
-                    <>
-                      {'='}
-                      <Box component='span' sx={{
-                        color: p.value.startsWith("'") ? '#FFD166' : '#B5E48C',
-                      }}>{p.value}</Box>
-                    </>
-                  )}
+                <Typography variant='h6' sx={{ color: CREAM }}>Your eye, as code</Typography>
+                <Stack direction='row' spacing={1}>
+                  <CopyButton getText={() => shareUrl} label='Copy link' color='secondary' />
+                  <CopyButton getText={() => codeText} label='Copy JSX' />
+                </Stack>
+              </Stack>
+              <Box component='pre' sx={{
+                m: 0, p: 2, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.06)',
+                fontFamily: "'Fira Code', monospace", fontSize: 13.5, lineHeight: 1.7,
+                overflowX: 'auto',
+              }}>
+                <code>
+                  <Box component='span' sx={{ color: '#9D8CFF' }}>import</Box>
+                  {` { ${componentName} } `}
+                  <Box component='span' sx={{ color: '#9D8CFF' }}>from</Box>
+                  <Box component='span' sx={{ color: '#FFD166' }}>{" 'cartoon-eyes'"}</Box>
+                  {';\n\n'}
+                  <Box component='span' sx={{ color: '#7FD8D8' }}>{`<${componentName}`}</Box>
                   {'\n'}
-                </React.Fragment>
-              ))}
-              <Box component='span' sx={{ color: '#7FD8D8' }}>{'/>'}</Box>
-            </code>
-          </Box>
-        </Paper>
+                  {codeProps.map((p) => (
+                    <React.Fragment key={p.name}>
+                      {'  '}
+                      <Box component='span' sx={{ color: '#FFA07A' }}>{p.name}</Box>
+                      {p.value !== null && (
+                        <>
+                          {'='}
+                          <Box component='span' sx={{
+                            color: p.value.startsWith("'") ? '#FFD166' : '#B5E48C',
+                          }}>{p.value}</Box>
+                        </>
+                      )}
+                      {'\n'}
+                    </React.Fragment>
+                  ))}
+                  <Box component='span' sx={{ color: '#7FD8D8' }}>{'/>'}</Box>
+                </code>
+              </Box>
+            </Paper>
+          </Stack>
+        </Box>
 
         {/* about */}
         <Box component='section' className='pop-in' sx={{ mt: 6, animationDelay: '560ms' }}>

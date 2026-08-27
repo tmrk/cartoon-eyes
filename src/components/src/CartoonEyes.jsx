@@ -7,6 +7,68 @@ const randomNumber = (min, max) => Math.floor(Math.random() * (max - min + 1)) +
 const ellipsePath = (rx, ry) =>
   'M ' + -rx + ' 0 A ' + rx + ' ' + ry + ' 0 1 0 ' + rx + ' 0 A ' + rx + ' ' + ry + ' 0 1 0 ' + -rx + ' 0 Z';
 
+// a colour may carry its alpha as a last byte: #RRGGBBAA, or the #RGBA
+// shorthand. SVG fills keep the two apart, so the alpha is split off into
+// fill-opacity here rather than left to the renderer, which keeps the drawing
+// valid wherever plain SVG 1.1 colours are expected
+const hexaFill = /^#(?:([0-9a-f]{3})([0-9a-f])|([0-9a-f]{6})([0-9a-f]{2}))$/i;
+
+const fillOf = (color) => {
+  const alpha = (typeof color === 'string') ? hexaFill.exec(color) : null;
+  if (!alpha) return { fill: color };
+  const [, shortColor, shortAlpha, longColor, longAlpha] = alpha;
+  return {
+    fill: '#' + (shortColor || longColor),
+    fillOpacity: parseInt(shortAlpha ? shortAlpha + shortAlpha : longAlpha, 16) / 255,
+  };
+};
+
+// smooth deceleration for lens moves and rotation, symmetric ease for lids
+const lensEasing = 'cubic-bezier(0.22, 1, 0.36, 1)';
+const lidEasing = 'cubic-bezier(0.4, 0, 0.2, 1)';
+
+// where the lens is right now: the controlled position, or a random one on a
+// timer while the eye wanders. A single eye runs its own; a pair runs one for
+// both, so the two look the same way at the same time
+const useLens = (lensMovement, lensX, lensY) => {
+  const [position, setPosition] = useState([lensX, lensY]);
+  useEffect(() => {
+    if (!lensMovement) {
+      setPosition([lensX, lensY]);
+      return;
+    }
+    const interval = (typeof lensMovement === 'number') ? lensMovement : 1000;
+    const intervalId = setInterval(() => {
+      setPosition([randomNumber(-90, 90), randomNumber(-90, 90)]);
+    }, interval);
+    return () => clearInterval(intervalId);
+  }, [lensMovement, lensX, lensY]);
+  return position;
+};
+
+// the blink clock: true while the lids are shut. Every other blink value (lid
+// sizes, the squeeze) follows from it, so one clock can drive several eyes -
+// which is how `EyePair` blinks its two in step
+const useBlink = (blinking, blinkFrequency, blinkSpeed) => {
+  const [closed, setClosed] = useState(false);
+  useEffect(() => {
+    setClosed(false);
+    if (!blinking) return;
+    let timeoutId;
+    const doBlink = () => {
+      setClosed(true);
+      timeoutId = setTimeout(() => setClosed(false), blinkSpeed);
+    };
+    doBlink(); // immediately do just one blink
+    const intervalId = setInterval(doBlink, blinkFrequency);
+    return () => {
+      clearInterval(intervalId);
+      clearTimeout(timeoutId);
+    };
+  }, [blinking, blinkFrequency, blinkSpeed]);
+  return closed;
+};
+
 export const Eye = (props) => {
 
   // destructure props and set defaults
@@ -63,6 +125,7 @@ export const Eye = (props) => {
     blinkSqueeze = false,
     blinkSpeed = (typeof blinking === 'number') ? blinking : 80,
     blinkFrequency = 3000,
+    blinkClosed,
     lensMovement = false,
     lensSpeed = 500,
     title,
@@ -75,51 +138,19 @@ export const Eye = (props) => {
   const maskId = 'cartoon-eye-mask-' + useId().replace(/[^a-zA-Z0-9_-]/g, '');
 
   const [lensX, lensY] = lensPosition;
-  const [updatedLensPosition, setUpdatedLensPosition] = useState(lensPosition);
+  const updatedLensPosition = useLens(lensMovement, lensX, lensY);
 
-  // wander the lens randomly, or follow the lensPosition prop when not wandering
-  useEffect(() => {
-    if (!lensMovement) {
-      setUpdatedLensPosition([lensX, lensY]);
-      return;
-    }
-    const interval = (typeof lensMovement === 'number') ? lensMovement : 1000;
-    const intervalId = setInterval(() => {
-      setUpdatedLensPosition([randomNumber(-90, 90), randomNumber(-90, 90)]);
-    }, interval);
-    return () => clearInterval(intervalId);
-  }, [lensMovement, lensX, lensY]);
+  // blinking is uncontrolled by default (the eye keeps its own clock); pass
+  // `blinkClosed` to drive it from outside and the eye's own timer stands down
+  const controlledBlink = blinkClosed !== undefined;
+  const blinkingNow = useBlink(controlledBlink ? false : blinking, blinkFrequency, blinkSpeed);
+  const closed = controlledBlink ? blinkClosed : blinkingNow;
 
-  const [updatedUpperLidSize, setUpdatedUpperLidSize] = useState(upperLidSize);
-  const [updatedLowerLidSize, setUpdatedLowerLidSize] = useState(lowerLidSize);
-  const [scleraScaleY, setScleraScaleY] = useState(1);
-
-  useEffect(() => {
-    setUpdatedUpperLidSize(upperLidSize);
-    setUpdatedLowerLidSize(lowerLidSize);
-    setScleraScaleY(1);
-
-    // blinking: periodically close both lids, then reopen after blinkSpeed ms
-    // (the CSS transition on the lid rects animates the movement)
-    if (!blinking) return;
-    let timeoutId;
-    const doBlink = () => {
-      setUpdatedUpperLidSize(100);
-      setUpdatedLowerLidSize(100);
-      if (blinkSqueeze) setScleraScaleY(0.6);
-      timeoutId = setTimeout(() => {
-        setUpdatedUpperLidSize(upperLidSize);
-        setUpdatedLowerLidSize(lowerLidSize);
-        if (blinkSqueeze) setScleraScaleY(1);
-      }, blinkSpeed);
-    };
-    doBlink(); // immediately do just one blink
-    const intervalId = setInterval(doBlink, blinkFrequency);
-    return () => {
-      clearInterval(intervalId);
-      clearTimeout(timeoutId);
-    };
-  }, [upperLidSize, lowerLidSize, blinking, blinkFrequency, blinkSpeed, blinkSqueeze]);
+  // a blink runs both lids down to 100 (the CSS transition on the lid rects
+  // animates the movement) and, with blinkSqueeze, squashes the whole eye
+  const updatedUpperLidSize = closed ? 100 : upperLidSize;
+  const updatedLowerLidSize = closed ? 100 : lowerLidSize;
+  const scleraScaleY = (closed && blinkSqueeze) ? 0.6 : 1;
 
   // calculate actual radius in pixels from percentage (50px is half of the viewbox)
   const scleraRadiusX = 50 / 100 * scleraWidth;
@@ -171,9 +202,6 @@ export const Eye = (props) => {
   const lensOffsetX = (scleraRadiusX - irisRadiusX) / 100 * updatedLensPosition[0];
   const lensOffsetY = (scleraRadiusY - irisRadiusY) / 100 * updatedLensPosition[1];
 
-  // smooth deceleration for lens moves, symmetric ease for lids
-  const lensEasing = 'cubic-bezier(0.22, 1, 0.36, 1)';
-  const lidEasing = 'cubic-bezier(0.4, 0, 0.2, 1)';
   const lidTransition = { transition: 'y ' + blinkSpeed + 'ms ' + lidEasing };
 
   return (
@@ -201,26 +229,26 @@ export const Eye = (props) => {
           transformOrigin: 'center',
           transition: 'transform ' + blinkSpeed + 'ms ' + lidEasing,
         }}>
-          <ellipse className='sclera' fill={scleraColor}
+          <ellipse className='sclera' {...fillOf(scleraColor)}
             cx='50' cy='50' rx={scleraRadiusX} ry={scleraRadiusY} style={scleraStyle} />
           <g className='lens' mask={'url(#' + maskId + ')'}>
             <g style={{
               transform: 'translate(' + lensOffsetX + 'px,' + lensOffsetY + 'px)',
               transition: 'transform ' + lensSpeed + 'ms ' + lensEasing,
             }}>
-              <ellipse className='iris' fill={irisColor} rx={irisFillRadiusX} ry={irisFillRadiusY}
+              <ellipse className='iris' {...fillOf(irisColor)} rx={irisFillRadiusX} ry={irisFillRadiusY}
                 transform='translate(50, 50)' style={irisStyle} />
               {limbusRatio > 0 ? (
-                <path className='limbus' fill={limbusColor} fillRule='evenodd'
+                <path className='limbus' {...fillOf(limbusColor)} fillRule='evenodd'
                   d={ellipsePath(irisRadiusX, irisRadiusY) + ' ' + ellipsePath(irisFillRadiusX, irisFillRadiusY)}
                   transform='translate(50, 50)' style={limbusStyle} />
               ) : null}
-              <ellipse className='pupil' fill={pupilColor} rx={pupilRadiusX} ry={pupilRadiusY}
+              <ellipse className='pupil' {...fillOf(pupilColor)} rx={pupilRadiusX} ry={pupilRadiusY}
                 transform='translate(50, 50)' style={pupilStyle} />
               {/* last inside the moving lens: the glint sits over the iris and the
                   pupil alike, so it may cross the edge of either */}
               {(catchlightRadiusX > 0 && catchlightRadiusY > 0) ? (
-                <ellipse className='catchlight' fill={catchlightColor}
+                <ellipse className='catchlight' {...fillOf(catchlightColor)}
                   rx={catchlightRadiusX} ry={catchlightRadiusY}
                   transform={'translate(' + (50 + catchlightOffsetX) + ', ' + (50 + catchlightOffsetY) + ')'}
                   style={catchlightStyle} />
@@ -233,25 +261,25 @@ export const Eye = (props) => {
                 paints over everything but that overhang, so the two share one
                 edge (no seam) and one transition */}
             {upperEyelinerHeight > 0 ? (
-              <rect className='upper-eyeliner' fill={upperEyelinerColor}
+              <rect className='upper-eyeliner' {...fillOf(upperEyelinerColor)}
                 width='100%' height={scleraRadiusY + upperEyelinerHeight} y={upperLidY}
                 style={{ ...lidTransition, ...upperEyelinerStyle }} />
             ) : null}
-            <rect className='upper-lid' fill={upperLidColor} width='100%' height={scleraRadiusY}
+            <rect className='upper-lid' {...fillOf(upperLidColor)} width='100%' height={scleraRadiusY}
               y={upperLidY} style={{ ...lidTransition, ...upperLidStyle }} />
             {lowerEyelinerHeight > 0 ? (
-              <rect className='lower-eyeliner' fill={lowerEyelinerColor}
+              <rect className='lower-eyeliner' {...fillOf(lowerEyelinerColor)}
                 width='100%' height={scleraRadiusY + lowerEyelinerHeight}
                 y={lowerLidY - lowerEyelinerHeight}
                 style={{ ...lidTransition, ...lowerEyelinerStyle }} />
             ) : null}
-            <rect className='lower-lid' fill={lowerLidColor} width='100%' height={scleraRadiusY}
+            <rect className='lower-lid' {...fillOf(lowerLidColor)} width='100%' height={scleraRadiusY}
               y={lowerLidY} style={{ ...lidTransition, ...lowerLidStyle }} />
           </g>
           {/* the outline frames everything, lids included, so it stays the edge of
               the eye however far the lids come down */}
           {eyeOutlineRatio > 0 ? (
-            <path className='eye-outline' fill={eyeOutlineColor} fillRule='evenodd'
+            <path className='eye-outline' {...fillOf(eyeOutlineColor)} fillRule='evenodd'
               d={ellipsePath(scleraRadiusX, scleraRadiusY) + ' '
                 + ellipsePath(scleraRadiusX * (1 - eyeOutlineRatio), scleraRadiusY * (1 - eyeOutlineRatio))}
               transform='translate(50, 50)' style={eyeOutlineStyle} />
@@ -259,6 +287,102 @@ export const Eye = (props) => {
         </g>
       </g>
     </svg>
+  );
+};
+
+// an override that names any of these takes that eye off the pair's shared
+// clock, so it keeps its own gaze or its own blink
+const gazeProps = ['lensPosition', 'lensMovement'];
+const blinkProps = ['blinking', 'blinkSpeed', 'blinkFrequency', 'blinkClosed'];
+
+export const EyePair = (props) => {
+
+  const {
+    // the pair's own props: everything else is an Eye prop shared by both eyes
+    gap = 20,
+    eyeRotation = 0,
+    pairRotation = 0,
+    leftEye,
+    rightEye,
+    // shared Eye props the pair has to resolve itself before handing them on
+    size = 100,
+    width = size,
+    height = size,
+    rotation = 0,
+    rotationSpeed = 0,
+    lensPosition = [0, 0],
+    lensMovement = false,
+    blinking = false,
+    blinkSpeed,
+    blinkFrequency = 3000,
+    title,
+    className,
+    style,
+    ...shared
+  } = props;
+
+  // one wander and one blink for the pair, so the two eyes look the same way at
+  // the same time and their lids come down together
+  const [lensX, lensY] = lensPosition;
+  const pairLensPosition = useLens(lensMovement, lensX, lensY);
+  const pairBlinkSpeed = (blinkSpeed === undefined)
+    ? ((typeof blinking === 'number') ? blinking : 80)
+    : blinkSpeed;
+  const pairBlinkClosed = useBlink(blinking, blinkFrequency, pairBlinkSpeed);
+
+  // one eye of the pair: the shared props, its own half of the mirrored eye
+  // rotation and the pair's gaze and blink - all of which its override replaces
+  const eye = (override, outwards) => {
+    const own = override || {};
+    const sharesGaze = !gazeProps.some((prop) => prop in own);
+    const sharesBlink = !blinkProps.some((prop) => prop in own);
+    return (
+      <Eye
+        {...shared}
+        // an override sizes its eye the way Eye itself does: width and height
+        // first, then size, then whatever the pair was given
+        width={own.width ?? own.size ?? width}
+        height={own.height ?? own.size ?? height}
+        // positive eyeRotation tilts both eyes outwards, on top of any shared
+        // rotation, which turns them the same way
+        rotation={rotation + outwards * eyeRotation}
+        rotationSpeed={rotationSpeed}
+        // the gaze is not mirrored: if the pair looks right, both irises do
+        lensPosition={sharesGaze ? pairLensPosition : lensPosition}
+        lensMovement={sharesGaze ? false : lensMovement}
+        blinking={blinking}
+        blinkSpeed={blinkSpeed}
+        blinkFrequency={blinkFrequency}
+        blinkClosed={(sharesBlink && blinking) ? pairBlinkClosed : undefined}
+        {...own}
+      />
+    );
+  };
+
+  // the gap is a share of one eye's nominal size rather than a fixed length, so
+  // the pair keeps its proportions however big it is drawn
+  const gapRatio = Math.max(0, gap) / 100;
+  const gapWidth = (typeof width === 'number')
+    ? width * gapRatio
+    : 'calc(' + width + ' * ' + gapRatio + ')';
+
+  return (
+    <div className={className ? 'cartoon-eye-pair ' + className : 'cartoon-eye-pair'}
+      role={title ? 'img' : undefined} aria-label={title}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        columnGap: gapWidth,
+        // pairRotation turns the two eyes as one unit, around the centre of the
+        // pair, on top of whatever each eye does on its own
+        transform: 'rotate(' + pairRotation + 'deg)',
+        transformOrigin: 'center',
+        transition: 'transform ' + rotationSpeed + 'ms ' + lensEasing,
+        ...style,
+      }}>
+      {eye(leftEye, -1)}
+      {eye(rightEye, 1)}
+    </div>
   );
 };
 

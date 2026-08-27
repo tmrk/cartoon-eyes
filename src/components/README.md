@@ -2,7 +2,7 @@
 
 A tiny, dependency-free React component for rendering customisable animated cartoon
 eyes as inline SVG. Make them blink, wander randomly, follow the mouse cursor or look
-towards any controlled position.
+towards any controlled position, one eye at a time or as a synchronised pair.
 
 ![Two cartoon eyes blinking and glancing around](https://raw.githubusercontent.com/tmrk/cartoon-eyes/master/docs/demo.svg)
 
@@ -46,6 +46,22 @@ function App() {
 export default App;
 ```
 
+Two eyes that look around and blink together are `EyePair`:
+
+```jsx
+import { EyePair } from 'cartoon-eyes';
+
+<EyePair
+  size={100}
+  gap={20}
+  eyeRotation={10}
+  irisColor='#5AA'
+  pupilSize={45}
+  blinking
+  lensMovement
+/>
+```
+
 ## Use cases
 
 - Animated website mascots and playful landing pages
@@ -83,6 +99,21 @@ the lids up and down as they blink.
 The drawing area is square and the eye always keeps its proportions: equal
 `scleraWidth` and `scleraHeight` render a perfect circle. If `width` and `height`
 differ, the drawing is scaled to fit and centred rather than stretched.
+
+## Colours
+
+Every colour prop takes any CSS colour the renderer understands, and may carry an
+alpha channel as an 8-digit hex (`#RRGGBBAA`) or its 4-digit shorthand (`#RGBA`).
+The alpha is split off into that shape's own `fill-opacity` rather than left in
+the colour, so the drawing stays plain SVG:
+
+```jsx
+<Eye size={100} catchlightSize={26} catchlightColor='#FFFFFFCC' />
+```
+
+renders the glint as `<ellipse class='catchlight' fill='#FFFFFF' fill-opacity='0.8' ... />`.
+A catchlight is the obvious place for it - a reflection rather than paint - but it
+works for every colour prop, so a lid or a sclera can be translucent too.
 
 ## Props
 
@@ -124,9 +155,60 @@ differ, the drawing is scaled to fit and centred rather than stretched.
 | `blinkSpeed` | number | `80` | How long a blink lasts, ms |
 | `blinkFrequency` | number | `3000` | Time between blinks, ms |
 | `blinkSqueeze` | boolean | `false` | Squash the whole eye vertically while blinking |
+| `blinkClosed` | boolean | - | Controlled blinking: while it is set the eye's own blink timer stands down and the lids follow it, so a parent can blink several eyes in step |
 | `title` | string | - | Accessible name (rendered as an SVG `<title>`) |
 | `className`, `style` | - | - | Passed through to the `<svg>` element |
 | `scleraStyle`, `eyeOutlineStyle`, `irisStyle`, `limbusStyle`, `pupilStyle`, `catchlightStyle`, `upperLidStyle`, `lowerLidStyle`, `upperEyelinerStyle`, `lowerEyelinerStyle` | object | `{}` | Inline styles for the individual shapes |
+
+## `EyePair`
+
+`EyePair` composes two `Eye`s rather than reimplementing one. Every `Eye` prop
+given to it is shared by both eyes, and `leftEye` / `rightEye` override that
+share one eye at a time:
+
+```jsx
+import { EyePair } from 'cartoon-eyes';
+
+<EyePair
+  size={120}
+  gap={20}
+  eyeRotation={10}
+  scleraWidth={80} scleraHeight={60}
+  irisColor='#3E7BFA'
+  blinking
+  lensMovement
+  rightEye={{ irisColor: '#F2A03D' }}  // one odd eye
+/>
+```
+
+It keeps the two eyes together where it matters:
+
+- **One gaze.** `lensPosition` is *not* mirrored - if the pair looks right, both
+  irises go right - and `lensMovement` wanders on a single timer, so the two eyes
+  look the same way at the same time.
+- **One blink.** The pair keeps one blink clock and drives both eyes from it, so
+  the lids come down together instead of drifting apart.
+- **Mirrored tilt.** `eyeRotation` is the outward splay: the left eye turns by
+  `-eyeRotation`, the right one by `+eyeRotation`. A shared `rotation` turns both
+  the same way, and the two add up.
+
+An override that names a gaze prop (`lensPosition`, `lensMovement`) or a blink
+prop (`blinking`, `blinkSpeed`, `blinkFrequency`, `blinkClosed`) takes that eye
+off the shared clock, so one eye can wink, or look elsewhere, on its own.
+
+| Prop | Type | Default | Description |
+| --- | --- | --- | --- |
+| `gap` | number | `20` | Space between the eyes as a % of one eye's nominal size, so the proportions hold at any size: `0` sets the two drawing areas side by side, `100` leaves a whole eye between them |
+| `eyeRotation` | number | `0` | Mirrored tilt in degrees, positive turning the eyes outwards |
+| `pairRotation` | number | `0` | Rotation of the whole pair as one unit, in degrees |
+| `leftEye`, `rightEye` | `EyeProps` | - | Props for one eye, overriding the shared ones |
+| `size`, `width`, `height` | number \| string | `100` | The nominal size of **one** eye, which `gap` is measured against |
+| `title` | string | - | Accessible name for the pair |
+| `className`, `style` | - | - | Passed to the wrapping element, not to the eyes |
+| every other `Eye` prop | | | Shared by both eyes |
+
+The eyes sit in an inline flex wrapper with the class `cartoon-eye-pair`, so a
+pair flows like an image and can be placed with plain CSS.
 
 ## Recipes
 
@@ -138,30 +220,24 @@ differ, the drawing is scaled to fit and centred rather than stretched.
 
 ### A pair of eyes
 
-Render two eyes with the same props; their timers run independently, which looks
-natural. Share the config in one object:
+```jsx
+<EyePair size={90} gap={18} scleraWidth={70} scleraHeight={50}
+  irisColor='#3E7BFA' irisSize={80} pupilSize={30} blinking lensMovement />
+```
+
+For a wink, take one eye off the shared blink and keep its lid down:
 
 ```jsx
-const eye = {
-  size: 90,
-  scleraWidth: 70,
-  scleraHeight: 50,
-  irisColor: '#3E7BFA',
-  irisSize: 80,
-  pupilSize: 30,
-  blinking: true,
-};
-
-<div style={{ display: 'flex', gap: 8 }}>
-  <Eye {...eye} />
-  <Eye {...eye} />
-</div>
+<EyePair size={90} blinking rightEye={{ blinking: false, upperLidSize: 100 }} />
 ```
+
+Two separate `Eye`s are still fine when you *want* their timers to drift apart:
+render them side by side with the same props.
 
 ### Eyes that follow the mouse cursor
 
 `lensPosition` is fully controlled, so map the pointer position to the −100..100 range
-and both eyes will track it:
+and the pair will track it - both eyes together, without mirroring:
 
 ```jsx
 import { useEffect, useState } from 'react';
@@ -179,12 +255,7 @@ function FollowingEyes() {
     return () => window.removeEventListener('mousemove', onMove);
   }, []);
 
-  return (
-    <div style={{ display: 'flex', gap: 8 }}>
-      <Eye size={90} lensPosition={lens} lensSpeed={120} blinking />
-      <Eye size={90} lensPosition={lens} lensSpeed={120} blinking />
-    </div>
-  );
+  return <EyePair size={90} gap={20} lensPosition={lens} lensSpeed={120} blinking />;
 }
 ```
 
@@ -224,8 +295,9 @@ function SpinningEye() {
 }
 ```
 
-A pair of eyes looks livelier when the tilts mirror each other: `rotation={-12}` on
-one and `rotation={12}` on the other.
+A pair looks livelier when the tilts mirror each other, which is what
+`EyePair`'s `eyeRotation` does: `<EyePair eyeRotation={12} />` turns the left eye
+to −12° and the right one to 12°.
 
 ### Cat-style pupils
 
@@ -428,6 +500,21 @@ rendering and hydration work as expected; animation starts on the client.
 - **New:** `eyeOutlineThickness`, `eyeOutlineColor` and `eyeOutlineStyle`, inking a
   filled ring around the sclera over the top of the eyelids.
 - All three default to `0` and render nothing until switched on.
+
+### v2.4
+
+- **New:** `EyePair`, which composes two `Eye`s and keeps them together: `gap`
+  (a share of one eye's nominal size), `eyeRotation` (the mirrored outward tilt),
+  `pairRotation`, and `leftEye` / `rightEye` overrides. The pair shares one gaze
+  and one blink clock, so its eyes look the same way and blink at the same time,
+  and an override takes one eye off either clock.
+- **New:** `blinkClosed`, a controlled blink for `Eye`: while it is set the eye's
+  own timer stands down and the lids follow the value. It is what `EyePair` uses
+  to blink both eyes on one clock.
+- **New:** every colour prop accepts an alpha channel as an 8-digit hex
+  (`#RRGGBBAA`, or the `#RGBA` shorthand), split into `fill` and `fill-opacity`
+  on the shape itself. A half-transparent glint is `catchlightColor='#FFFFFF80'`.
+- `Eye` is otherwise unchanged: same props, same rendering.
 
 ## Licence
 
