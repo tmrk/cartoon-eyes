@@ -53,6 +53,15 @@ export interface EyeProps {
   /** Duration of the lens movement transition in ms. Default 500. */
   lensSpeed?: number;
 
+  /**
+   * Tilt of the whole eye in degrees: negative rotates left (anticlockwise),
+   * positive rotates right (clockwise). Default 0. Not clamped to ±180, so it can
+   * be driven past a full turn to animate a spin.
+   */
+  rotation?: number;
+  /** Duration of the rotation transition in ms. Default 0 (rotate immediately). */
+  rotationSpeed?: number;
+
   /** `true` to blink periodically; a number also sets `blinkSpeed` in ms. */
   blinking?: boolean | number;
   /** How long a blink lasts, in ms. Default 80. */

@@ -41,6 +41,29 @@ describe('Eye geometry', () => {
   });
 });
 
+describe('Eye rotation', () => {
+  it('rotates the whole eye around the centre of the drawing area', () => {
+    const { container } = render(<Eye size={100} rotation={-45} />);
+    const rotationGroup = container.querySelector('.eye-rotation');
+    expect(rotationGroup.style.transform).toBe('rotate(-45deg)');
+    expect(rotationGroup.style.transformOrigin).toBe('center');
+  });
+
+  it('keeps rotation off the blink squeeze so each animates on its own timing', () => {
+    const { container } = render(<Eye size={100} rotation={30} rotationSpeed={400} />);
+    const rotationGroup = container.querySelector('.eye-rotation');
+    const eye = rotationGroup.querySelector('.eye');
+    expect(rotationGroup.style.transition).toContain('400ms');
+    // the squeeze lives on the inner group, so it stays along the eye's own axis
+    expect(eye.style.transform).toBe('scaleY(1)');
+  });
+
+  it('accepts angles beyond a full turn so a spin can be animated', () => {
+    const { container } = render(<Eye size={100} rotation={900} />);
+    expect(container.querySelector('.eye-rotation').style.transform).toBe('rotate(900deg)');
+  });
+});
+
 describe('Eye masking', () => {
   it('gives each instance a unique mask ID referenced by its own groups', () => {
     const { container } = render(

@@ -5,6 +5,8 @@ import {
   Slider, Stack, Switch, ToggleButton, ToggleButtonGroup, Tooltip, Typography,
 } from '@mui/material';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
+import FullscreenIcon from '@mui/icons-material/Fullscreen';
+import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
 import { MuiColorInput } from 'mui-color-input';
 import { Eye } from './components/src/CartoonEyes';
 
@@ -68,6 +70,17 @@ const theme = createTheme({
         track: { height: 6, border: 'none' },
       },
     },
+    // the colour fields carry the same ink outline as the buttons and cards
+    MuiOutlinedInput: {
+      styleOverrides: {
+        root: {
+          backgroundColor: PAPER,
+          '& .MuiOutlinedInput-notchedOutline': { borderWidth: 2.5, borderColor: INK },
+          '&:hover .MuiOutlinedInput-notchedOutline': { borderWidth: 2.5, borderColor: INK },
+          '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderWidth: 2.5, borderColor: CORAL },
+        },
+      },
+    },
     MuiToggleButton: {
       styleOverrides: {
         root: {
@@ -98,6 +111,7 @@ const initialConfig = {
   pupilWidth: 30, pupilHeight: 30, pupilColor: '#000000',
   upperLidSize: 20, upperLidColor: '#aaaaaa',
   lowerLidSize: 20, lowerLidColor: '#aaaaaa',
+  rotation: 0,
   blinking: true, blinkSpeed: 80, blinkFrequency: 3000, blinkSqueeze: false,
   movement: 'wander', // demo-only: 'follow' | 'wander' | 'still'
 };
@@ -187,6 +201,7 @@ const eyeDefaults = {
   irisSize: 60, irisColor: '#666666',
   pupilSize: 50, pupilColor: '#000000',
   lidSize: 20, lidColor: '#aaaaaa',
+  rotation: 0,
   blinkSpeed: 80, blinkFrequency: 3000,
 };
 
@@ -229,6 +244,8 @@ function diffEyeProps(config) {
     add('upperLidColor', config.upperLidColor);
     add('lowerLidColor', config.lowerLidColor);
   }
+
+  if (config.rotation !== eyeDefaults.rotation) add('rotation', config.rotation);
 
   if (config.blinking) {
     add('blinking', true);
@@ -279,6 +296,7 @@ function parseShareParams(search) {
     pupilWidth: eyeDefaults.pupilSize, pupilHeight: eyeDefaults.pupilSize, pupilColor: eyeDefaults.pupilColor,
     upperLidSize: eyeDefaults.lidSize, upperLidColor: eyeDefaults.lidColor,
     lowerLidSize: eyeDefaults.lidSize, lowerLidColor: eyeDefaults.lidColor,
+    rotation: eyeDefaults.rotation,
     blinking: false, blinkSqueeze: false,
     movement: 'still',
   };
@@ -325,6 +343,9 @@ function parseShareParams(search) {
   color('upperLidColor', (v) => { config.upperLidColor = v; });
   color('lowerLidColor', (v) => { config.lowerLidColor = v; });
 
+  // the Eye itself takes any angle, but the demo's slider is a single turn
+  num('rotation', -180, 180, (v) => { config.rotation = v; });
+
   flag('blinking', (v) => { config.blinking = v; });
   num('blinkSpeed', 30, 400, (v) => { config.blinkSpeed = v; });
   num('blinkFrequency', 500, 8000, (v) => { config.blinkFrequency = v; });
@@ -349,7 +370,10 @@ function parseShareSize(search) {
 // Small building blocks
 // ---------------------------------------------------------------------------
 
-const ControlSlider = ({ label, value, onChange, min = 0, max = 100, step = 1, unit = '', disabled = false }) => (
+const ControlSlider = ({
+  label, value, onChange, min = 0, max = 100, step = 1, unit = '',
+  disabled = false, marks = false, origin = null,
+}) => (
   <Box>
     <Stack direction='row' sx={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
       <Typography variant='body2' sx={{ fontWeight: 700, color: disabled ? 'text.disabled' : 'text.primary' }}>
@@ -360,13 +384,24 @@ const ControlSlider = ({ label, value, onChange, min = 0, max = 100, step = 1, u
         {value}{unit}
       </Typography>
     </Stack>
+    {/* a bipolar control (rotation) reads as a deflection from its origin, not as
+        an amount filled from the left end; MUI lays the track out inline, so the
+        override has to be !important to win */}
     <Slider size='small' value={value} min={min} max={max} step={step} disabled={disabled}
-      onChange={(e, v) => onChange(v)} aria-label={label} />
+      marks={marks}
+      onChange={(e, v) => onChange(v)} aria-label={label}
+      sx={origin === null ? null : {
+        '& .MuiSlider-track': {
+          left: `${((Math.min(value, origin) - min) / (max - min)) * 100}% !important`,
+          width: `${(Math.abs(value - origin) / (max - min)) * 100}% !important`,
+        },
+        '& .MuiSlider-mark': { width: 3, height: 3, borderRadius: '50%', backgroundColor: INK, opacity: 0.45 },
+      }} />
   </Box>
 );
 
-const ColorControl = ({ label, value, onChange }) => (
-  <Box>
+const ColorControl = ({ label, value, onChange, sx }) => (
+  <Box sx={sx}>
     <Typography variant='body2' gutterBottom sx={{ fontWeight: 700 }}>{label}</Typography>
     <MuiColorInput format='hex' isAlphaHidden size='small' value={value}
       onChange={(v) => onChange(v)}
@@ -419,6 +454,7 @@ const eyeProps = (config, lensPosition) => ({
   upperLidColor: config.upperLidColor,
   lowerLidSize: config.lowerLidSize,
   lowerLidColor: config.lowerLidColor,
+  rotation: config.rotation,
   blinking: config.blinking,
   blinkSpeed: config.blinkSpeed,
   blinkFrequency: config.blinkFrequency,
@@ -437,6 +473,8 @@ function App() {
   const [eyeCount, setEyeCount] = useState(1); // demo-only, not an Eye prop
   const [eyeSize, setEyeSize] = useState( // demo-only display size in px
     () => parseShareSize(window.location.search) ?? defaultEyeSize);
+  // the stage crops tall eyes by default; expanding it reveals the whole drawing area
+  const [stageExpanded, setStageExpanded] = useState(false);
 
   // shareable URL for the current config; the address bar follows it (debounced)
   // once the user changes anything. The pristine-load values are compared by
@@ -513,6 +551,10 @@ function App() {
     height: '100%',
   };
 
+  // on mobile the eye box scales with the viewport (52vw at the 680px default) so
+  // the stage keeps the same proportions for every preset size
+  const xsEyeBox = `min(${eyeSize}px, ${(eyeSize * 52 / 680).toFixed(1)}vw)`;
+
   const codeProps = useMemo(() => buildCodeProps(config), [config]);
   const codeText = useMemo(() => {
     const inner = codeProps.map((p) => `  ${p.name}${p.value === null ? '' : `=${p.value}`}`).join('\n');
@@ -570,16 +612,40 @@ function App() {
 
         {/* hero eyes */}
         <Paper className='pop-in' sx={{
+          position: 'relative',
           mb: 3, p: 0, overflow: 'hidden', bgcolor: '#FFE8CF',
           backgroundImage: `radial-gradient(rgba(41,34,58,0.12) 2px, transparent 2px)`,
           backgroundSize: '18px 18px',
         }}>
+          <Tooltip title={stageExpanded ? 'Shrink the stage' : 'Fit the whole eye'} placement='right'>
+            <IconButton size='small' aria-pressed={stageExpanded}
+              aria-label={stageExpanded ? 'Shrink the stage' : 'Fit the whole eye'}
+              onClick={() => setStageExpanded((v) => !v)}
+              sx={{
+                position: 'absolute', top: 12, left: 12, zIndex: 1,
+                bgcolor: PAPER, color: INK, borderRadius: 2,
+                border: `2.5px solid ${INK}`, boxShadow: `3px 3px 0 ${INK}`,
+                transition: 'transform 120ms ease, box-shadow 120ms ease',
+                '&:hover': {
+                  bgcolor: '#FFF3DE', boxShadow: `4px 4px 0 ${INK}`,
+                  transform: 'translate(-1px, -1px)',
+                },
+                '&:active': { boxShadow: `1px 1px 0 ${INK}`, transform: 'translate(2px, 2px)' },
+              }}>
+              {stageExpanded ? <FullscreenExitIcon fontSize='small' /> : <FullscreenIcon fontSize='small' />}
+            </IconButton>
+          </Tooltip>
           <Box ref={eyesRef} sx={{
             display: 'flex', justifyContent: 'center', alignItems: 'center',
             gap: { xs: 1, md: 2 },
-            // fixed height, no padding: tall enough to fit the default-size eye,
-            // larger sizes bleed past the edges, cropped by overflow hidden
-            height: { xs: '28vw', md: 360 },
+            // collapsed: a fixed height tall enough for the default-size eye, with
+            // larger sizes bleeding past the edges (cropped by overflow hidden).
+            // expanded: the square eye box itself, which is exactly what a sclera
+            // height of 100 fills, plus breathing room above and below
+            height: stageExpanded
+              ? { xs: `max(28vw, ${xsEyeBox} + 24px)`, md: Math.max(360, eyeSize + 72) }
+              : { xs: '28vw', md: 360 },
+            transition: 'height 350ms cubic-bezier(0.4, 0, 0.2, 1)',
             overflow: 'hidden',
           }}>
             {Array.from({ length: eyeCount }, (_, i) => (
@@ -587,12 +653,10 @@ function App() {
               // count changes, keeping their blink timers in sync.
               // square boxes: the eye SVG keeps its 1:1 drawing aspect, so the
               // slider scales uniformly; flex must never shrink the boxes
-              // the xs clamp scales with eyeSize (52vw at the 680 default) so the
-              // stage keeps the same proportions on mobile for every preset size
               <Box key={`${eyeCount}-${i}`} sx={{
                 flex: '0 0 auto',
-                width: { xs: `min(${eyeSize}px, ${(eyeSize * 52 / 680).toFixed(1)}vw)`, md: eyeSize },
-                height: { xs: `min(${eyeSize}px, ${(eyeSize * 52 / 680).toFixed(1)}vw)`, md: eyeSize },
+                width: { xs: xsEyeBox, md: eyeSize },
+                height: { xs: xsEyeBox, md: eyeSize },
               }}>
                 <Eye {...heroEye} />
               </Box>
@@ -637,17 +701,27 @@ function App() {
               <ControlSlider label='Pupil height' value={config.pupilHeight} onChange={set('pupilHeight')} />
               <ControlSlider label='Upper eyelid' value={config.upperLidSize} onChange={set('upperLidSize')} />
               <ControlSlider label='Lower eyelid' value={config.lowerLidSize} onChange={set('lowerLidSize')} />
+              {/* the track grows out of upright, with a mark every quarter turn */}
+              <ControlSlider label='Rotation' value={config.rotation} onChange={set('rotation')}
+                min={-180} max={180} unit='°' origin={0}
+                marks={[-180, -90, 0, 90, 180].map((value) => ({ value }))} />
             </Stack>
           </Card>
 
           <Card title='Colours' sx={{ animationDelay: '200ms' }}>
-            <Stack spacing={2}>
-              <ColorControl label='Sclera' value={config.scleraColor} onChange={set('scleraColor')} />
+            {/* two columns wherever the swatch fields still fit, keeping the card
+                short and leaving room for more settings */}
+            <Box sx={{
+              display: 'grid', gap: 2,
+              gridTemplateColumns: 'repeat(auto-fit, minmax(132px, 1fr))',
+            }}>
+              <ColorControl label='Sclera' value={config.scleraColor} onChange={set('scleraColor')}
+                sx={{ gridColumn: '1 / -1' }} />
               <ColorControl label='Iris' value={config.irisColor} onChange={set('irisColor')} />
               <ColorControl label='Pupil' value={config.pupilColor} onChange={set('pupilColor')} />
               <ColorControl label='Upper eyelid' value={config.upperLidColor} onChange={set('upperLidColor')} />
               <ColorControl label='Lower eyelid' value={config.lowerLidColor} onChange={set('lowerLidColor')} />
-            </Stack>
+            </Box>
           </Card>
 
           <Card title='Behaviour' sx={{ animationDelay: '260ms' }}>

@@ -89,6 +89,8 @@ differ, the drawing is scaled to fit and centred rather than stretched.
 | `lensPosition` | `[x, y]` | `[0, 0]` | Where the eye looks; each axis −100 (left/top) to 100 (right/bottom) |
 | `lensMovement` | boolean \| number | `false` | Wander randomly; a number sets the interval in ms (default 1000) |
 | `lensSpeed` | number | `500` | Lens movement transition duration, ms |
+| `rotation` | number | `0` | Tilt of the whole eye in degrees: negative rotates left, positive right. Not clamped to ±180, so it can be driven past a full turn |
+| `rotationSpeed` | number | `0` | Rotation transition duration, ms (0 rotates immediately) |
 | `blinking` | boolean \| number | `false` | Blink periodically; a number also sets `blinkSpeed` |
 | `blinkSpeed` | number | `80` | How long a blink lasts, ms |
 | `blinkFrequency` | number | `3000` | Time between blinks, ms |
@@ -163,6 +165,38 @@ function FollowingEyes() {
 <Eye size={100} lensMovement blinking />        {/* new position every second */}
 <Eye size={100} lensMovement={2500} blinking /> {/* every 2.5 s */}
 ```
+
+### A tilted eye, and a spinning one
+
+`rotation` turns the whole eye, lids and all, around the centre of the drawing area.
+Negative angles tilt left, positive tilt right:
+
+```jsx
+<Eye size={100} scleraWidth={80} scleraHeight={55} rotation={-18} blinking />
+```
+
+Angles are not clamped to a single turn, so a counter that keeps climbing spins the
+eye instead of snapping back at 180. Set `rotationSpeed` to ease between angles, or
+leave it at 0 and drive every frame yourself:
+
+```jsx
+import { useEffect, useState } from 'react';
+import { Eye } from 'cartoon-eyes';
+
+function SpinningEye() {
+  const [angle, setAngle] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => setAngle((a) => a + 6), 40); // never wraps
+    return () => clearInterval(id);
+  }, []);
+
+  return <Eye size={120} scleraWidth={80} scleraHeight={55} rotation={angle} blinking />;
+}
+```
+
+A pair of eyes looks livelier when the tilts mirror each other: `rotation={-12}` on
+one and `rotation={12}` on the other.
 
 ### Cat-style pupils
 
@@ -251,6 +285,12 @@ rendering and hydration work as expected; animation starts on the client.
 - **Fixed:** `blinkSqueeze` no longer double-applies its squash.
 - **New:** `lensSpeed`, `title`, `className` and `style` props; TypeScript types.
 - The package now ships as ESM and requires React ≥ 18.
+
+### v2.1
+
+- **New:** `rotation` and `rotationSpeed` props. Rotation is applied to the whole eye
+  around the centre of the drawing area and accepts angles beyond ±180, so a spin can
+  be animated without wrapping.
 
 ## Repository layout
 

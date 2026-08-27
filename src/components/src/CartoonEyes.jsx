@@ -14,6 +14,8 @@ export const Eye = (props) => {
     scleraColor = '#ffffff',
     scleraStyle = {},
     lensPosition = [0, 0],
+    rotation = 0,
+    rotationSpeed = 0,
     irisSize = 60,
     irisWidth = irisSize,
     irisHeight = irisSize,
@@ -136,29 +138,39 @@ export const Eye = (props) => {
           <ellipse fill='#ffffff' cx='50' cy='50' rx={scleraRadiusX} ry={scleraRadiusY} />
         </mask>
       </defs>
-      <g className='eye' style={{
-        transform: 'scaleY(' + scleraScaleY + ')',
+      {/* rotation wraps (rather than joins) the blink squeeze so the squash always
+          runs along the eye's own axis and each has its own transition duration.
+          No sclera radius can exceed the 50-unit half-viewbox, so a rotated eye
+          always stays inside the drawing area */}
+      <g className='eye-rotation' style={{
+        transform: 'rotate(' + rotation + 'deg)',
         transformOrigin: 'center',
-        transition: 'transform ' + blinkSpeed + 'ms ' + lidEasing,
+        transition: 'transform ' + rotationSpeed + 'ms ' + lensEasing,
       }}>
-        <ellipse className='sclera' fill={scleraColor}
-          cx='50' cy='50' rx={scleraRadiusX} ry={scleraRadiusY} style={scleraStyle} />
-        <g className='lens' mask={'url(#' + maskId + ')'}>
-          <g style={{
-            transform: 'translate(' + lensOffsetX + 'px,' + lensOffsetY + 'px)',
-            transition: 'transform ' + lensSpeed + 'ms ' + lensEasing,
-          }}>
-            <ellipse className='iris' fill={irisColor} rx={irisRadiusX} ry={irisRadiusY}
-              transform='translate(50, 50)' style={irisStyle} />
-            <ellipse className='pupil' fill={pupilColor} rx={pupilRadiusX} ry={pupilRadiusY}
-              transform='translate(50, 50)' style={pupilStyle} />
+        <g className='eye' style={{
+          transform: 'scaleY(' + scleraScaleY + ')',
+          transformOrigin: 'center',
+          transition: 'transform ' + blinkSpeed + 'ms ' + lidEasing,
+        }}>
+          <ellipse className='sclera' fill={scleraColor}
+            cx='50' cy='50' rx={scleraRadiusX} ry={scleraRadiusY} style={scleraStyle} />
+          <g className='lens' mask={'url(#' + maskId + ')'}>
+            <g style={{
+              transform: 'translate(' + lensOffsetX + 'px,' + lensOffsetY + 'px)',
+              transition: 'transform ' + lensSpeed + 'ms ' + lensEasing,
+            }}>
+              <ellipse className='iris' fill={irisColor} rx={irisRadiusX} ry={irisRadiusY}
+                transform='translate(50, 50)' style={irisStyle} />
+              <ellipse className='pupil' fill={pupilColor} rx={pupilRadiusX} ry={pupilRadiusY}
+                transform='translate(50, 50)' style={pupilStyle} />
+            </g>
           </g>
-        </g>
-        <g className='eyelids' mask={'url(#' + maskId + ')'}>
-          <rect className='upper-lid' fill={upperLidColor} width='100%' height={scleraRadiusY}
-            y={upperLidY} style={{ ...lidTransition, ...upperLidStyle }} />
-          <rect className='lower-lid' fill={lowerLidColor} width='100%' height={scleraRadiusY}
-            y={lowerLidY} style={{ ...lidTransition, ...lowerLidStyle }} />
+          <g className='eyelids' mask={'url(#' + maskId + ')'}>
+            <rect className='upper-lid' fill={upperLidColor} width='100%' height={scleraRadiusY}
+              y={upperLidY} style={{ ...lidTransition, ...upperLidStyle }} />
+            <rect className='lower-lid' fill={lowerLidColor} width='100%' height={scleraRadiusY}
+              y={lowerLidY} style={{ ...lidTransition, ...lowerLidStyle }} />
+          </g>
         </g>
       </g>
     </svg>
