@@ -41,6 +41,68 @@ describe('Eye geometry', () => {
   });
 });
 
+describe('Eye limbus', () => {
+  it('renders no limbus by default, leaving the iris at its full size', () => {
+    const { container } = render(<Eye size={100} scleraWidth={80} irisSize={60} />);
+    expect(container.querySelector('.limbus')).toBeNull();
+    const iris = container.querySelector('.iris');
+    expect(iris.getAttribute('rx')).toBe('24'); // min(40, 50) * 60%
+    expect(iris.getAttribute('ry')).toBe('24');
+  });
+
+  it('takes the limbus out of the iris rather than adding it around the outside', () => {
+    const { container } = render(
+      <Eye size={100} irisSize={60} pupilSize={50} limbusThickness={10} />
+    );
+    // the coloured iris shrinks to the inner 90% ...
+    const iris = container.querySelector('.iris');
+    expect(iris.getAttribute('rx')).toBe('27'); // 30 * 90%
+    expect(iris.getAttribute('ry')).toBe('27');
+    // ... while the pupil still measures against the unchanged outer iris
+    const pupil = container.querySelector('.pupil');
+    expect(pupil.getAttribute('rx')).toBe('15'); // 30 * 50%
+    expect(pupil.getAttribute('ry')).toBe('15');
+  });
+
+  it('draws the ring as one evenodd path holding the outer and inner ellipses', () => {
+    const { container } = render(
+      <Eye size={100} irisSize={60} limbusThickness={10} limbusColor='#123456' />
+    );
+    const limbus = container.querySelector('.limbus');
+    expect(limbus.tagName.toLowerCase()).toBe('path');
+    expect(limbus.getAttribute('fill')).toBe('#123456');
+    expect(limbus.getAttribute('fill-rule')).toBe('evenodd');
+    // no stroke: the ring is the hollow area between the two ellipse subpaths
+    expect(limbus.getAttribute('stroke')).toBeNull();
+    const d = limbus.getAttribute('d');
+    expect(d).toContain('A 30 30'); // outer, at the full iris radii
+    expect(d).toContain('A 27 27'); // inner, punching the hole
+    expect(d.match(/M /g)).toHaveLength(2);
+  });
+
+  it('scales the ring against each iris axis for an elliptical iris', () => {
+    const { container } = render(
+      <Eye size={100} irisWidth={80} irisHeight={40} limbusThickness={25} />
+    );
+    const iris = container.querySelector('.iris');
+    expect(iris.getAttribute('rx')).toBe('30'); // 40 * 75%
+    expect(iris.getAttribute('ry')).toBe('15'); // 20 * 75%
+    expect(container.querySelector('.limbus').getAttribute('d'))
+      .toBe('M -40 0 A 40 20 0 1 0 40 0 A 40 20 0 1 0 -40 0 Z '
+        + 'M -30 0 A 30 15 0 1 0 30 0 A 30 15 0 1 0 -30 0 Z');
+  });
+
+  it('leaves the lens travel unchanged when a limbus is enabled', () => {
+    const lensTransform = (limbusThickness) => {
+      const { container } = render(
+        <Eye size={100} irisSize={60} lensPosition={[100, 100]} limbusThickness={limbusThickness} />
+      );
+      return container.querySelector('.lens > g').style.transform;
+    };
+    expect(lensTransform(20)).toBe(lensTransform(0));
+  });
+});
+
 describe('Eye rotation', () => {
   it('rotates the whole eye around the centre of the drawing area', () => {
     const { container } = render(<Eye size={100} rotation={-45} />);

@@ -63,6 +63,12 @@ sized against the drawing area, the iris against the sclera, and the pupil again
 iris. A circular iris or pupil is fitted against the smaller of its parent's radii, so
 it always stays inside an elliptical parent.
 
+`limbusThickness` is a percentage of the iris radius, and the ring is taken *out of*
+the iris rather than added around it: `limbusThickness={10}` colours the outer 10% of
+the iris and shrinks the coloured centre to the remaining 90%. The iris keeps the size
+`irisSize` gives it, so adding a limbus never grows the iris, resizes the pupil or
+changes how far the eye can look.
+
 The drawing area is square and the eye always keeps its proportions: equal
 `scleraWidth` and `scleraHeight` render a perfect circle. If `width` and `height`
 differ, the drawing is scaled to fit and centred rather than stretched.
@@ -79,6 +85,8 @@ differ, the drawing is scaled to fit and centred rather than stretched.
 | `irisSize` | number | `60` | Iris width and height, % of the sclera |
 | `irisWidth`, `irisHeight` | number | `irisSize` | Set iris dimensions separately |
 | `irisColor` | string | `'#666666'` | Iris fill colour |
+| `limbusThickness` | number | `0` | Limbus (the darker ring around the iris) thickness, % of the iris radius. `0` renders no ring |
+| `limbusColor` | string | `'#000000'` | Limbus fill colour |
 | `pupilSize` | number | `50` | Pupil width and height, % of the iris |
 | `pupilWidth`, `pupilHeight` | number | `pupilSize` | Set pupil dimensions separately (e.g. `pupilWidth={14} pupilHeight={90}` for a cat's slit) |
 | `pupilColor` | string | `'#000000'` | Pupil fill colour |
@@ -97,7 +105,7 @@ differ, the drawing is scaled to fit and centred rather than stretched.
 | `blinkSqueeze` | boolean | `false` | Squash the whole eye vertically while blinking |
 | `title` | string | - | Accessible name (rendered as an SVG `<title>`) |
 | `className`, `style` | - | - | Passed through to the `<svg>` element |
-| `scleraStyle`, `irisStyle`, `pupilStyle`, `upperLidStyle`, `lowerLidStyle` | object | `{}` | Inline styles for the individual shapes |
+| `scleraStyle`, `irisStyle`, `limbusStyle`, `pupilStyle`, `upperLidStyle`, `lowerLidStyle` | object | `{}` | Inline styles for the individual shapes |
 
 ## Recipes
 
@@ -213,6 +221,26 @@ A tall, narrow pupil against a round amber iris:
 />
 ```
 
+### A limbus ring around the iris
+
+`limbusThickness` paints the outer part of the iris in `limbusColor`, the way a real
+eye has a darker rim. It is a share of the iris radius, so it scales with the iris and
+follows an elliptical one on both axes:
+
+```jsx
+<Eye
+  size={100}
+  scleraWidth={72} scleraHeight={66} scleraColor='#f6edd2'
+  irisSize={95} irisColor='#E8A33D'
+  limbusThickness={9} limbusColor='#7a4a12'
+  pupilWidth={14} pupilHeight={90}
+  blinking
+/>
+```
+
+The ring is a filled shape rather than a stroke, so it never spills outside the iris,
+and `limbusThickness={0}` (the default) draws no ring at all.
+
 ### Sleepy, half-closed eyes
 
 A heavy upper lid does the trick:
@@ -291,6 +319,12 @@ rendering and hydration work as expected; animation starts on the client.
 - **New:** `rotation` and `rotationSpeed` props. Rotation is applied to the whole eye
   around the centre of the drawing area and accepts angles beyond ±180, so a spin can
   be animated without wrapping.
+
+### v2.2
+
+- **New:** `limbusThickness`, `limbusColor` and `limbusStyle` props, drawing the darker
+  ring around the iris. The ring is taken out of the existing iris dimensions, so
+  enabling it leaves the iris size, the pupil and the eye's movement untouched.
 
 ## Licence
 

@@ -108,6 +108,7 @@ const theme = createTheme({
 const initialConfig = {
   scleraWidth: 70, scleraHeight: 50, scleraColor: '#FFFFFF',
   irisWidth: 80, irisHeight: 80, irisColor: '#3E7BFA',
+  limbusThickness: 0, limbusColor: '#000000',
   pupilWidth: 30, pupilHeight: 30, pupilColor: '#000000',
   upperLidSize: 20, upperLidColor: '#AAAAAA',
   lowerLidSize: 20, lowerLidColor: '#AAAAAA',
@@ -130,6 +131,7 @@ const presets = {
     ...initialConfig,
     scleraWidth: 80, scleraHeight: 70, scleraColor: '#AAFFAA',
     irisWidth: 100, irisHeight: 100, irisColor: '#FF7700',
+    limbusThickness: 9, limbusColor: '#8A3B00', // a burnt rim around the amber
     pupilWidth: 10, pupilHeight: 80, pupilColor: '#000000',
     upperLidSize: 0, lowerLidSize: 0,
     blinking: false,
@@ -138,6 +140,7 @@ const presets = {
     ...initialConfig,
     scleraWidth: 80, scleraHeight: 65, scleraColor: '#FFFFDD',
     irisWidth: 70, irisHeight: 65, irisColor: '#559933',
+    limbusThickness: 15, limbusColor: '#2E4A1C', // murky edge, for the decay
     pupilWidth: 50, pupilHeight: 50, pupilColor: '#330000',
     upperLidSize: 35, upperLidColor: '#557755',
     lowerLidSize: 20, lowerLidColor: '#557755',
@@ -147,6 +150,7 @@ const presets = {
     ...initialConfig,
     scleraWidth: 72, scleraHeight: 66, scleraColor: '#F6EDD2',
     irisWidth: 95, irisHeight: 95, irisColor: '#E8A33D',
+    limbusThickness: 9, limbusColor: '#7A4A12', // cats have a strong dark rim
     pupilWidth: 14, pupilHeight: 90, pupilColor: '#1C1C1C',
     upperLidSize: 12, upperLidColor: '#8A6D3B',
     lowerLidSize: 8, lowerLidColor: '#8A6D3B',
@@ -175,6 +179,8 @@ const presets = {
     scleraWidth: 62, scleraHeight: 88, scleraColor: '#0D0D15',
     // just light enough against the near-black sclera that the wander reads
     irisWidth: 85, irisHeight: 85, irisColor: '#252542',
+    // lighter than the iris for once: a cold rim that finds the eye in the dark
+    limbusThickness: 10, limbusColor: '#4B4B8F',
     pupilWidth: 55, pupilHeight: 55, pupilColor: '#000000',
     upperLidSize: 0, upperLidColor: '#0D0D15',
     lowerLidSize: 0, lowerLidColor: '#0D0D15',
@@ -184,6 +190,7 @@ const presets = {
     ...initialConfig,
     scleraWidth: 80, scleraHeight: 80, scleraColor: '#F7C948',
     irisWidth: 70, irisHeight: 70, irisColor: '#B45309',
+    limbusThickness: 12, limbusColor: '#5C2308',
     pupilWidth: 85, pupilHeight: 30, pupilColor: '#101010',
     upperLidSize: 10, upperLidColor: '#3F6212',
     lowerLidSize: 10, lowerLidColor: '#3F6212',
@@ -205,6 +212,7 @@ const defaultEyeSize = presetDisplaySize.Default;
 const eyeDefaults = {
   scleraWidth: 100, scleraHeight: 100, scleraColor: '#FFFFFF',
   irisSize: 60, irisColor: '#666666',
+  limbusThickness: 0, limbusColor: '#000000',
   pupilSize: 50, pupilColor: '#000000',
   lidSize: 20, lidColor: '#AAAAAA',
   rotation: 0,
@@ -231,6 +239,12 @@ function diffEyeProps(config, lensPosition = config.lensPosition) {
     add('irisHeight', config.irisHeight);
   }
   if (config.irisColor !== eyeDefaults.irisColor) add('irisColor', config.irisColor);
+
+  // the colour only matters once there is a ring to paint
+  if (config.limbusThickness !== eyeDefaults.limbusThickness) {
+    add('limbusThickness', config.limbusThickness);
+    if (config.limbusColor !== eyeDefaults.limbusColor) add('limbusColor', config.limbusColor);
+  }
 
   if (config.pupilWidth === config.pupilHeight) {
     if (config.pupilWidth !== eyeDefaults.pupilSize) add('pupilSize', config.pupilWidth);
@@ -306,6 +320,7 @@ function parseShareParams(search) {
     ...initialConfig, // key order matters: preset matching compares JSON strings
     scleraWidth: eyeDefaults.scleraWidth, scleraHeight: eyeDefaults.scleraHeight, scleraColor: eyeDefaults.scleraColor,
     irisWidth: eyeDefaults.irisSize, irisHeight: eyeDefaults.irisSize, irisColor: eyeDefaults.irisColor,
+    limbusThickness: eyeDefaults.limbusThickness, limbusColor: eyeDefaults.limbusColor,
     pupilWidth: eyeDefaults.pupilSize, pupilHeight: eyeDefaults.pupilSize, pupilColor: eyeDefaults.pupilColor,
     upperLidSize: eyeDefaults.lidSize, upperLidColor: eyeDefaults.lidColor,
     lowerLidSize: eyeDefaults.lidSize, lowerLidColor: eyeDefaults.lidColor,
@@ -344,6 +359,9 @@ function parseShareParams(search) {
   num('irisWidth', 0, 100, (v) => { config.irisWidth = v; });
   num('irisHeight', 0, 100, (v) => { config.irisHeight = v; });
   color('irisColor', (v) => { config.irisColor = v; });
+
+  num('limbusThickness', 0, 100, (v) => { config.limbusThickness = v; });
+  color('limbusColor', (v) => { config.limbusColor = v; });
 
   num('pupilSize', 0, 100, (v) => { config.pupilWidth = v; config.pupilHeight = v; });
   num('pupilWidth', 0, 100, (v) => { config.pupilWidth = v; });
@@ -467,12 +485,13 @@ const AxisSlider = ({ label, startLabel, endLabel, value, onChange, disabled = f
   </Box>
 );
 
-const ColorControl = ({ label, value, onChange, sx }) => (
+const ColorControl = ({ label, value, onChange, sx, disabled = false }) => (
   <Box sx={sx}>
-    <Typography variant='body2' gutterBottom sx={{ fontWeight: 700 }}>{label}</Typography>
+    <Typography variant='body2' gutterBottom
+      sx={{ fontWeight: 700, color: disabled ? 'text.disabled' : 'text.primary' }}>{label}</Typography>
     {/* the field keeps whatever case was typed in its own state, so the uppercase
         shown here is CSS; the value handed back to the config is uppercased too */}
-    <MuiColorInput format='hex' isAlphaHidden size='small' value={value}
+    <MuiColorInput format='hex' isAlphaHidden size='small' value={value} disabled={disabled}
       onChange={(v) => onChange(upperHex(v))}
       sx={{
         width: '100%',
@@ -519,6 +538,8 @@ const eyeProps = (config, lensPosition) => ({
   irisWidth: config.irisWidth,
   irisHeight: config.irisHeight,
   irisColor: config.irisColor,
+  limbusThickness: config.limbusThickness,
+  limbusColor: config.limbusColor,
   pupilWidth: config.pupilWidth,
   pupilHeight: config.pupilHeight,
   pupilColor: config.pupilColor,
@@ -780,6 +801,9 @@ function App() {
               <ControlSlider label='Sclera height' value={config.scleraHeight} onChange={set('scleraHeight')} />
               <ControlSlider label='Iris width' value={config.irisWidth} onChange={set('irisWidth')} />
               <ControlSlider label='Iris height' value={config.irisHeight} onChange={set('irisHeight')} />
+              {/* the ring is taken out of the iris, so it is a share of the iris
+                  radius rather than something added around it */}
+              <ControlSlider label='Limbus' value={config.limbusThickness} onChange={set('limbusThickness')} />
               <ControlSlider label='Pupil width' value={config.pupilWidth} onChange={set('pupilWidth')} />
               <ControlSlider label='Pupil height' value={config.pupilHeight} onChange={set('pupilHeight')} />
               <ControlSlider label='Upper eyelid' value={config.upperLidSize} onChange={set('upperLidSize')} />
@@ -801,6 +825,8 @@ function App() {
               <ColorControl label='Sclera' value={config.scleraColor} onChange={set('scleraColor')}
                 sx={{ gridColumn: '1 / -1' }} />
               <ColorControl label='Iris' value={config.irisColor} onChange={set('irisColor')} />
+              <ColorControl label='Limbus' value={config.limbusColor} onChange={set('limbusColor')}
+                disabled={config.limbusThickness === 0} />
               <ColorControl label='Pupil' value={config.pupilColor} onChange={set('pupilColor')} />
               <ColorControl label='Upper eyelid' value={config.upperLidColor} onChange={set('upperLidColor')} />
               <ColorControl label='Lower eyelid' value={config.lowerLidColor} onChange={set('lowerLidColor')} />

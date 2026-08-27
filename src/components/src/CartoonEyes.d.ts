@@ -24,6 +24,17 @@ export interface EyeProps {
   irisColor?: string;
   irisStyle?: React.CSSProperties;
 
+  /**
+   * Thickness of the limbus (the darker ring around the iris) as a percentage
+   * (0-100) of the iris radius: `10` colours the outer 10% of the iris. The iris
+   * keeps its outer dimensions, so a limbus never grows the iris or moves the
+   * pupil. Default 0 (no limbus rendered).
+   */
+  limbusThickness?: number;
+  /** Fill colour of the limbus ring. Default `#000000`. */
+  limbusColor?: string;
+  limbusStyle?: React.CSSProperties;
+
   /** Sets both pupil width and height as a percentage (0-100) of the iris. Default 50. */
   pupilSize?: number;
   pupilWidth?: number;

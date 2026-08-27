@@ -2,6 +2,11 @@ import { useEffect, useId, useState } from 'react';
 
 const randomNumber = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 
+// an ellipse centred on the origin, drawn as two arcs; two of these in one path
+// with fill-rule evenodd make a ring, the inner one punching the hole
+const ellipsePath = (rx, ry) =>
+  'M ' + -rx + ' 0 A ' + rx + ' ' + ry + ' 0 1 0 ' + rx + ' 0 A ' + rx + ' ' + ry + ' 0 1 0 ' + -rx + ' 0 Z';
+
 export const Eye = (props) => {
 
   // destructure props and set defaults
@@ -21,6 +26,9 @@ export const Eye = (props) => {
     irisHeight = irisSize,
     irisColor = '#666666',
     irisStyle = {},
+    limbusThickness = 0,
+    limbusColor = '#000000',
+    limbusStyle = {},
     pupilSize = 50,
     pupilWidth = pupilSize,
     pupilHeight = pupilSize,
@@ -107,6 +115,12 @@ export const Eye = (props) => {
   const irisRadiusY = (irisWidth === irisHeight)
     ? Math.min(scleraRadiusX, scleraRadiusY) / 100 * irisHeight
     : scleraRadiusY / 100 * irisHeight;
+  // the limbus eats inwards from the iris edge: it takes the outer
+  // `limbusThickness`% of each iris radius, so the iris keeps its outer size and
+  // the lens movement, clipping and pupil sizing below are unaffected by it
+  const limbusRatio = Math.min(100, Math.max(0, limbusThickness)) / 100;
+  const irisFillRadiusX = irisRadiusX * (1 - limbusRatio);
+  const irisFillRadiusY = irisRadiusY * (1 - limbusRatio);
   const pupilRadiusX = (pupilWidth === pupilHeight)
     ? Math.min(irisRadiusX, irisRadiusY) / 100 * pupilWidth
     : irisRadiusX / 100 * pupilWidth;
@@ -159,8 +173,13 @@ export const Eye = (props) => {
               transform: 'translate(' + lensOffsetX + 'px,' + lensOffsetY + 'px)',
               transition: 'transform ' + lensSpeed + 'ms ' + lensEasing,
             }}>
-              <ellipse className='iris' fill={irisColor} rx={irisRadiusX} ry={irisRadiusY}
+              <ellipse className='iris' fill={irisColor} rx={irisFillRadiusX} ry={irisFillRadiusY}
                 transform='translate(50, 50)' style={irisStyle} />
+              {limbusRatio > 0 ? (
+                <path className='limbus' fill={limbusColor} fillRule='evenodd'
+                  d={ellipsePath(irisRadiusX, irisRadiusY) + ' ' + ellipsePath(irisFillRadiusX, irisFillRadiusY)}
+                  transform='translate(50, 50)' style={limbusStyle} />
+              ) : null}
               <ellipse className='pupil' fill={pupilColor} rx={pupilRadiusX} ry={pupilRadiusY}
                 transform='translate(50, 50)' style={pupilStyle} />
             </g>
