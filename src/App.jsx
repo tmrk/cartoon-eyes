@@ -106,15 +106,21 @@ const theme = createTheme({
 
 // what the demo starts with
 const initialConfig = {
-  scleraWidth: 70, scleraHeight: 50, scleraColor: '#ffffff',
+  scleraWidth: 70, scleraHeight: 50, scleraColor: '#FFFFFF',
   irisWidth: 80, irisHeight: 80, irisColor: '#3E7BFA',
   pupilWidth: 30, pupilHeight: 30, pupilColor: '#000000',
-  upperLidSize: 20, upperLidColor: '#aaaaaa',
-  lowerLidSize: 20, lowerLidColor: '#aaaaaa',
+  upperLidSize: 20, upperLidColor: '#AAAAAA',
+  lowerLidSize: 20, lowerLidColor: '#AAAAAA',
   rotation: 0,
+  // where the lens rests while the eye is still; the animated modes drive their
+  // own position and leave this one untouched
+  lensPosition: [0, 0],
   blinking: true, blinkSpeed: 80, blinkFrequency: 3000, blinkSqueeze: false,
   movement: 'wander', // demo-only: 'follow' | 'wander' | 'still'
 };
+
+// hex colours are stored (and shown) uppercase wherever they surface
+const upperHex = (color) => (typeof color === 'string' ? color.toUpperCase() : color);
 
 const randomNumber = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 
@@ -122,15 +128,15 @@ const presets = {
   Default: initialConfig,
   Snake: {
     ...initialConfig,
-    scleraWidth: 80, scleraHeight: 70, scleraColor: '#aaffaa',
-    irisWidth: 100, irisHeight: 100, irisColor: '#ff7700',
+    scleraWidth: 80, scleraHeight: 70, scleraColor: '#AAFFAA',
+    irisWidth: 100, irisHeight: 100, irisColor: '#FF7700',
     pupilWidth: 10, pupilHeight: 80, pupilColor: '#000000',
     upperLidSize: 0, lowerLidSize: 0,
     blinking: false,
   },
   Zombie: {
     ...initialConfig,
-    scleraWidth: 80, scleraHeight: 65, scleraColor: '#ffffdd',
+    scleraWidth: 80, scleraHeight: 65, scleraColor: '#FFFFDD',
     irisWidth: 70, irisHeight: 65, irisColor: '#559933',
     pupilWidth: 50, pupilHeight: 50, pupilColor: '#330000',
     upperLidSize: 35, upperLidColor: '#557755',
@@ -139,48 +145,48 @@ const presets = {
   },
   Cat: {
     ...initialConfig,
-    scleraWidth: 72, scleraHeight: 66, scleraColor: '#f6edd2',
+    scleraWidth: 72, scleraHeight: 66, scleraColor: '#F6EDD2',
     irisWidth: 95, irisHeight: 95, irisColor: '#E8A33D',
-    pupilWidth: 14, pupilHeight: 90, pupilColor: '#1c1c1c',
-    upperLidSize: 12, upperLidColor: '#8a6d3b',
-    lowerLidSize: 8, lowerLidColor: '#8a6d3b',
+    pupilWidth: 14, pupilHeight: 90, pupilColor: '#1C1C1C',
+    upperLidSize: 12, upperLidColor: '#8A6D3B',
+    lowerLidSize: 8, lowerLidColor: '#8A6D3B',
     blinkSpeed: 200, blinkFrequency: 4500, // the languid cat blink
   },
   Sleepy: {
     ...initialConfig,
-    scleraWidth: 75, scleraHeight: 45, scleraColor: '#fff5f0',
-    irisWidth: 70, irisHeight: 70, irisColor: '#7a6ea8',
-    pupilWidth: 40, pupilHeight: 40, pupilColor: '#2a2438',
-    upperLidSize: 55, upperLidColor: '#d9b8a6',
-    lowerLidSize: 25, lowerLidColor: '#d9b8a6',
+    scleraWidth: 75, scleraHeight: 45, scleraColor: '#FFF5F0',
+    irisWidth: 70, irisHeight: 70, irisColor: '#7A6EA8',
+    pupilWidth: 40, pupilHeight: 40, pupilColor: '#2A2438',
+    upperLidSize: 55, upperLidColor: '#D9B8A6',
+    lowerLidSize: 25, lowerLidColor: '#D9B8A6',
     blinkSpeed: 300, blinkFrequency: 2200,
     movement: 'still', // too drowsy to look around
   },
   Surprised: {
     ...initialConfig,
-    scleraWidth: 82, scleraHeight: 82, scleraColor: '#ffffff',
-    irisWidth: 45, irisHeight: 45, irisColor: '#16a34a',
+    scleraWidth: 82, scleraHeight: 82, scleraColor: '#FFFFFF',
+    irisWidth: 45, irisHeight: 45, irisColor: '#16A34A',
     pupilWidth: 55, pupilHeight: 55, pupilColor: '#000000',
     upperLidSize: 0, lowerLidSize: 0,
     blinking: false,
   },
   Alien: {
     ...initialConfig,
-    scleraWidth: 62, scleraHeight: 88, scleraColor: '#0d0d15',
+    scleraWidth: 62, scleraHeight: 88, scleraColor: '#0D0D15',
     // just light enough against the near-black sclera that the wander reads
     irisWidth: 85, irisHeight: 85, irisColor: '#252542',
     pupilWidth: 55, pupilHeight: 55, pupilColor: '#000000',
-    upperLidSize: 0, upperLidColor: '#0d0d15',
-    lowerLidSize: 0, lowerLidColor: '#0d0d15',
+    upperLidSize: 0, upperLidColor: '#0D0D15',
+    lowerLidSize: 0, lowerLidColor: '#0D0D15',
     blinkSpeed: 160, blinkFrequency: 6000,
   },
   Frog: {
     ...initialConfig,
-    scleraWidth: 80, scleraHeight: 80, scleraColor: '#f7c948',
-    irisWidth: 70, irisHeight: 70, irisColor: '#b45309',
+    scleraWidth: 80, scleraHeight: 80, scleraColor: '#F7C948',
+    irisWidth: 70, irisHeight: 70, irisColor: '#B45309',
     pupilWidth: 85, pupilHeight: 30, pupilColor: '#101010',
-    upperLidSize: 10, upperLidColor: '#3f6212',
-    lowerLidSize: 10, lowerLidColor: '#3f6212',
+    upperLidSize: 10, upperLidColor: '#3F6212',
+    lowerLidSize: 10, lowerLidColor: '#3F6212',
     blinkFrequency: 4200,
   },
 };
@@ -197,18 +203,20 @@ const defaultEyeSize = presetDisplaySize.Default;
 
 // the Eye component's own defaults, used to emit only non-default props
 const eyeDefaults = {
-  scleraWidth: 100, scleraHeight: 100, scleraColor: '#ffffff',
+  scleraWidth: 100, scleraHeight: 100, scleraColor: '#FFFFFF',
   irisSize: 60, irisColor: '#666666',
   pupilSize: 50, pupilColor: '#000000',
-  lidSize: 20, lidColor: '#aaaaaa',
+  lidSize: 20, lidColor: '#AAAAAA',
   rotation: 0,
   blinkSpeed: 80, blinkFrequency: 3000,
 };
 
 // diff a demo config against the Eye component's own defaults, collapsing
 // symmetric width/height (and lid) pairs into their shorthand props; raw values
-// (number | color string | true), shared by the JSX snippet and the share URL
-function diffEyeProps(config) {
+// (number | [x, y] | color string | true), shared by the JSX snippet and the
+// share URL. `lensPosition` defaults to the config's resting position, but the
+// snippet passes the live one so the code follows a wandering eye
+function diffEyeProps(config, lensPosition = config.lensPosition) {
   const props = [];
   const add = (name, value) => props.push({ name, value });
 
@@ -247,6 +255,9 @@ function diffEyeProps(config) {
 
   if (config.rotation !== eyeDefaults.rotation) add('rotation', config.rotation);
 
+  const [lensX, lensY] = lensPosition.map(Math.round);
+  if (lensX !== 0 || lensY !== 0) add('lensPosition', [lensX, lensY]);
+
   if (config.blinking) {
     add('blinking', true);
     if (config.blinkSpeed !== eyeDefaults.blinkSpeed) add('blinkSpeed', config.blinkSpeed);
@@ -256,12 +267,13 @@ function diffEyeProps(config) {
   return props;
 }
 
-function buildCodeProps(config) {
-  const props = diffEyeProps(config).map(({ name, value }) => ({
+function buildCodeProps(config, lensPosition) {
+  const props = diffEyeProps(config, lensPosition).map(({ name, value }) => ({
     name,
     value: value === true ? null // bare boolean prop
-      : typeof value === 'number' ? `{${value}}`
-        : `'${value}'`,
+      : Array.isArray(value) ? `{[${value.join(', ')}]}`
+        : typeof value === 'number' ? `{${value}}`
+          : `'${upperHex(value)}'`,
   }));
   if (config.movement === 'wander') props.push({ name: 'lensMovement', value: null });
   return props;
@@ -276,8 +288,9 @@ function buildShareParams(config, eyeSize) {
   const params = new URLSearchParams();
   for (const { name, value } of diffEyeProps(config)) {
     params.set(name, value === true ? '1'
-      : typeof value === 'string' ? value.replace(/^#/, '')
-        : String(value));
+      : Array.isArray(value) ? value.join(',')
+        : typeof value === 'string' ? value.replace(/^#/, '')
+          : String(value));
   }
   params.set('movement', config.movement);
   if (eyeSize !== defaultEyeSize) params.set('size', String(eyeSize));
@@ -297,6 +310,7 @@ function parseShareParams(search) {
     upperLidSize: eyeDefaults.lidSize, upperLidColor: eyeDefaults.lidColor,
     lowerLidSize: eyeDefaults.lidSize, lowerLidColor: eyeDefaults.lidColor,
     rotation: eyeDefaults.rotation,
+    lensPosition: [0, 0],
     blinking: false, blinkSqueeze: false,
     movement: 'still',
   };
@@ -313,7 +327,7 @@ function parseShareParams(search) {
     const raw = (params.get(name) || '').replace(/^#/, '');
     if (!/^([0-9a-f]{3}|[0-9a-f]{6})$/i.test(raw)) return;
     found = true;
-    apply(`#${raw}`);
+    apply(upperHex(`#${raw}`));
   };
   const flag = (name, apply) => {
     if (!params.has(name)) return;
@@ -346,6 +360,15 @@ function parseShareParams(search) {
   // the Eye itself takes any angle, but the demo's slider is a single turn
   num('rotation', -180, 180, (v) => { config.rotation = v; });
 
+  // "x,y", each clamped to the axis sliders' range; a malformed half is dropped
+  if (params.has('lensPosition')) {
+    const [x, y] = params.get('lensPosition').split(',').map(Number);
+    if (Number.isFinite(x) && Number.isFinite(y)) {
+      found = true;
+      config.lensPosition = [x, y].map((v) => Math.min(100, Math.max(-100, v)));
+    }
+  }
+
   flag('blinking', (v) => { config.blinking = v; });
   num('blinkSpeed', 30, 400, (v) => { config.blinkSpeed = v; });
   num('blinkFrequency', 500, 8000, (v) => { config.blinkFrequency = v; });
@@ -370,6 +393,17 @@ function parseShareSize(search) {
 // Small building blocks
 // ---------------------------------------------------------------------------
 
+// a bipolar control (rotation, the two eye-position axes) reads as a deflection
+// from its origin, not as an amount filled from the left end; MUI lays the track
+// out inline, so the override has to be !important to win
+const originTrackSx = (value, min, max, origin) => ({
+  '& .MuiSlider-track': {
+    left: `${((Math.min(value, origin) - min) / (max - min)) * 100}% !important`,
+    width: `${(Math.abs(value - origin) / (max - min)) * 100}% !important`,
+  },
+  '& .MuiSlider-mark': { width: 3, height: 3, borderRadius: '50%', backgroundColor: INK, opacity: 0.45 },
+});
+
 const ControlSlider = ({
   label, value, onChange, min = 0, max = 100, step = 1, unit = '',
   disabled = false, marks = false, origin = null,
@@ -384,18 +418,51 @@ const ControlSlider = ({
         {value}{unit}
       </Typography>
     </Stack>
-    {/* a bipolar control (rotation) reads as a deflection from its origin, not as
-        an amount filled from the left end; MUI lays the track out inline, so the
-        override has to be !important to win */}
     <Slider size='small' value={value} min={min} max={max} step={step} disabled={disabled}
       marks={marks}
       onChange={(e, v) => onChange(v)} aria-label={label}
-      sx={origin === null ? null : {
-        '& .MuiSlider-track': {
-          left: `${((Math.min(value, origin) - min) / (max - min)) * 100}% !important`,
-          width: `${(Math.abs(value - origin) / (max - min)) * 100}% !important`,
+      sx={origin === null ? null : originTrackSx(value, min, max, origin)} />
+  </Box>
+);
+
+// one axis of the eye position: the two ends are named rather than numbered, and
+// the readout sits between them so the pair reads as a little crosshair
+const AxisSlider = ({ label, startLabel, endLabel, value, onChange, disabled = false, smooth = false }) => (
+  <Box>
+    {/* 1fr auto 1fr keeps the readout dead centre over the slider's zero notch,
+        whatever the two end labels are called */}
+    <Box sx={{
+      display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'baseline',
+      color: disabled ? 'text.disabled' : 'text.secondary',
+    }}>
+      <Typography variant='caption' sx={{ fontWeight: 700 }}>{startLabel}</Typography>
+      <Typography variant='caption' sx={{
+        fontFamily: "'Fira Code', monospace", px: 1,
+        color: disabled ? 'text.disabled' : 'text.primary',
+      }}>
+        {Math.round(value)}
+      </Typography>
+      <Typography variant='caption' sx={{ fontWeight: 700, textAlign: 'right' }}>{endLabel}</Typography>
+    </Box>
+    {/* the animated modes keep driving the sliders while they are disabled, so a
+        greyed-out thumb still shows where the eye is looking; a wandering eye
+        takes 600ms to reach its new target, so the thumb glides with it rather
+        than snapping ahead */}
+    <Slider size='small' value={Math.round(value)} min={-100} max={100} disabled={disabled}
+      marks={[{ value: 0 }]}
+      onChange={(e, v) => onChange(v)} aria-label={label}
+      sx={{
+        ...originTrackSx(Math.round(value), -100, 100, 0),
+        '&.Mui-disabled': {
+          '& .MuiSlider-thumb': {
+            color: PAPER, borderColor: INK, opacity: 0.6,
+            transition: smooth ? 'left 600ms cubic-bezier(0.22, 1, 0.36, 1)' : 'none',
+          },
+          '& .MuiSlider-track': {
+            opacity: 0.5,
+            transition: smooth ? 'left 600ms cubic-bezier(0.22, 1, 0.36, 1), width 600ms cubic-bezier(0.22, 1, 0.36, 1)' : 'none',
+          },
         },
-        '& .MuiSlider-mark': { width: 3, height: 3, borderRadius: '50%', backgroundColor: INK, opacity: 0.45 },
       }} />
   </Box>
 );
@@ -403,9 +470,14 @@ const ControlSlider = ({
 const ColorControl = ({ label, value, onChange, sx }) => (
   <Box sx={sx}>
     <Typography variant='body2' gutterBottom sx={{ fontWeight: 700 }}>{label}</Typography>
+    {/* the field keeps whatever case was typed in its own state, so the uppercase
+        shown here is CSS; the value handed back to the config is uppercased too */}
     <MuiColorInput format='hex' isAlphaHidden size='small' value={value}
-      onChange={(v) => onChange(v)}
-      sx={{ width: '100%', '& input': { fontFamily: "'Fira Code', monospace" } }} />
+      onChange={(v) => onChange(upperHex(v))}
+      sx={{
+        width: '100%',
+        '& input': { fontFamily: "'Fira Code', monospace", textTransform: 'uppercase' },
+      }} />
   </Box>
 );
 
@@ -538,9 +610,15 @@ function App() {
     };
   }, [config.movement]);
 
+  // where the lens actually is right now: driven by the active movement mode, or
+  // by the eye-position sliders when the eye is still
   const lensPosition =
     config.movement === 'follow' ? followLens :
-    config.movement === 'wander' ? wanderLens : [0, 0];
+    config.movement === 'wander' ? wanderLens : config.lensPosition;
+  const setLensAxis = (axis) => (value) => setConfig((c) => ({
+    ...c,
+    lensPosition: axis === 0 ? [value, c.lensPosition[1]] : [c.lensPosition[0], value],
+  }));
   const heroEye = {
     ...eyeProps(config, lensPosition),
     // the demo drives all movement itself (so multiple eyes stay in sync);
@@ -555,7 +633,12 @@ function App() {
   // the stage keeps the same proportions for every preset size
   const xsEyeBox = `min(${eyeSize}px, ${(eyeSize * 52 / 680).toFixed(1)}vw)`;
 
-  const codeProps = useMemo(() => buildCodeProps(config), [config]);
+  // the snippet tracks the live lens, so a wandering eye writes its own code
+  const [lensX, lensY] = lensPosition;
+  const stillEye = config.movement === 'still';
+  const codeProps = useMemo(
+    () => buildCodeProps(config, [lensX, lensY]),
+    [config, lensX, lensY]);
   const codeText = useMemo(() => {
     const inner = codeProps.map((p) => `  ${p.name}${p.value === null ? '' : `=${p.value}`}`).join('\n');
     return `import { Eye } from 'cartoon-eyes';\n\n<Eye\n${inner}\n/>`;
@@ -617,12 +700,12 @@ function App() {
           backgroundImage: `radial-gradient(rgba(41,34,58,0.12) 2px, transparent 2px)`,
           backgroundSize: '18px 18px',
         }}>
-          <Tooltip title={stageExpanded ? 'Shrink the stage' : 'Fit the whole eye'} placement='right'>
+          <Tooltip title={stageExpanded ? 'Shrink the stage' : 'Expand the stage'} placement='left'>
             <IconButton size='small' aria-pressed={stageExpanded}
-              aria-label={stageExpanded ? 'Shrink the stage' : 'Fit the whole eye'}
+              aria-label={stageExpanded ? 'Shrink the stage' : 'Expand the stage'}
               onClick={() => setStageExpanded((v) => !v)}
               sx={{
-                position: 'absolute', top: 12, left: 12, zIndex: 1,
+                position: 'absolute', top: 12, right: 12, zIndex: 1,
                 bgcolor: PAPER, color: INK, borderRadius: 2,
                 border: `2.5px solid ${INK}`, boxShadow: `3px 3px 0 ${INK}`,
                 transition: 'transform 120ms ease, box-shadow 120ms ease',
@@ -744,6 +827,27 @@ function App() {
                   <ToggleButton value='follow'>Follow cursor</ToggleButton>
                   <ToggleButton value='still'>Still</ToggleButton>
                 </ToggleButtonGroup>
+                {/* the position belongs to the movement mode above it, so the two
+                    sit in one block with only a hairline of space between them */}
+                <Stack direction='row' sx={{ mt: 1.5, mb: 0.5, justifyContent: 'space-between', alignItems: 'baseline' }}>
+                  <Typography variant='body2'
+                    sx={{ fontWeight: 700, color: stillEye ? 'text.primary' : 'text.disabled' }}>
+                    Eye position
+                  </Typography>
+                  {!stillEye && (
+                    <Typography variant='caption' sx={{ color: 'text.disabled', fontWeight: 600 }}>
+                      {config.movement === 'wander' ? 'wandering' : 'following'}
+                    </Typography>
+                  )}
+                </Stack>
+                <Stack spacing={0.5}>
+                  <AxisSlider label='Eye position, horizontal' startLabel='Left' endLabel='Right'
+                    value={lensX} onChange={setLensAxis(0)}
+                    disabled={!stillEye} smooth={config.movement === 'wander'} />
+                  <AxisSlider label='Eye position, vertical' startLabel='Up' endLabel='Down'
+                    value={lensY} onChange={setLensAxis(1)}
+                    disabled={!stillEye} smooth={config.movement === 'wander'} />
+                </Stack>
               </Box>
               <SwitchControl label='Blinking' checked={config.blinking} onChange={set('blinking')} />
               <SwitchControl label='Blink squeeze' checked={config.blinkSqueeze} onChange={set('blinkSqueeze')}
@@ -771,29 +875,29 @@ function App() {
             overflowX: 'auto',
           }}>
             <code>
-              <Box component='span' sx={{ color: '#9d8cff' }}>import</Box>
+              <Box component='span' sx={{ color: '#9D8CFF' }}>import</Box>
               {' { Eye } '}
-              <Box component='span' sx={{ color: '#9d8cff' }}>from</Box>
-              <Box component='span' sx={{ color: '#ffd166' }}>{" 'cartoon-eyes'"}</Box>
+              <Box component='span' sx={{ color: '#9D8CFF' }}>from</Box>
+              <Box component='span' sx={{ color: '#FFD166' }}>{" 'cartoon-eyes'"}</Box>
               {';\n\n'}
-              <Box component='span' sx={{ color: '#7fd8d8' }}>{'<Eye'}</Box>
+              <Box component='span' sx={{ color: '#7FD8D8' }}>{'<Eye'}</Box>
               {'\n'}
               {codeProps.map((p) => (
                 <React.Fragment key={p.name}>
                   {'  '}
-                  <Box component='span' sx={{ color: '#ffa07a' }}>{p.name}</Box>
+                  <Box component='span' sx={{ color: '#FFA07A' }}>{p.name}</Box>
                   {p.value !== null && (
                     <>
                       {'='}
                       <Box component='span' sx={{
-                        color: p.value.startsWith("'") ? '#ffd166' : '#b5e48c',
+                        color: p.value.startsWith("'") ? '#FFD166' : '#B5E48C',
                       }}>{p.value}</Box>
                     </>
                   )}
                   {'\n'}
                 </React.Fragment>
               ))}
-              <Box component='span' sx={{ color: '#7fd8d8' }}>{'/>'}</Box>
+              <Box component='span' sx={{ color: '#7FD8D8' }}>{'/>'}</Box>
             </code>
           </Box>
         </Paper>
