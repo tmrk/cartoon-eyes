@@ -103,6 +103,150 @@ describe('Eye limbus', () => {
   });
 });
 
+describe('Eye catchlight', () => {
+  it('renders no catchlight by default', () => {
+    const { container } = render(<Eye size={100} />);
+    expect(container.querySelector('.catchlight')).toBeNull();
+  });
+
+  it('measures against the full outer iris, whatever the limbus takes', () => {
+    const catchlight = (limbusThickness) => {
+      const { container } = render(
+        <Eye size={100} irisSize={60} catchlightSize={20} limbusThickness={limbusThickness} />
+      );
+      return container.querySelector('.catchlight');
+    };
+    // the iris radius is 30 either way, so 20% of it is 6 with or without a ring
+    expect(catchlight(0).getAttribute('rx')).toBe('6');
+    expect(catchlight(40).getAttribute('rx')).toBe('6');
+    expect(catchlight(40).getAttribute('transform')).toBe(catchlight(0).getAttribute('transform'));
+  });
+
+  it('fits a circular catchlight against the smaller iris radius', () => {
+    const { container } = render(
+      <Eye size={100} irisWidth={80} irisHeight={40} catchlightSize={25} />
+    );
+    const catchlight = container.querySelector('.catchlight');
+    // iris radii are 40 and 20, so the circle is min(40, 20) * 25%
+    expect(catchlight.getAttribute('rx')).toBe('5');
+    expect(catchlight.getAttribute('ry')).toBe('5');
+  });
+
+  it('scales an elliptical catchlight against each iris axis independently', () => {
+    const { container } = render(
+      <Eye size={100} irisWidth={80} irisHeight={40} catchlightWidth={25} catchlightHeight={50} />
+    );
+    const catchlight = container.querySelector('.catchlight');
+    expect(catchlight.getAttribute('rx')).toBe('10'); // 40 * 25%
+    expect(catchlight.getAttribute('ry')).toBe('10'); // 20 * 50%
+  });
+
+  it('places it in the slack between itself and the iris edge', () => {
+    const { container } = render(
+      <Eye size={100} irisSize={60} catchlightSize={20} catchlightPosition={[-50, 100]} />
+    );
+    // iris radius 30, catchlight radius 6: 24 units of slack on each axis
+    expect(container.querySelector('.catchlight').getAttribute('transform'))
+      .toBe('translate(38, 74)');
+  });
+
+  it('draws it over the pupil, inside the group the lens moves', () => {
+    const { container } = render(<Eye size={100} catchlightSize={20} />);
+    const lensGroup = container.querySelector('.lens > g');
+    const drawn = [...lensGroup.children].map((el) => el.getAttribute('class'));
+    expect(drawn).toEqual(['iris', 'pupil', 'catchlight']);
+  });
+});
+
+describe('Eye eyeliner', () => {
+  it('renders no eyeliner by default', () => {
+    const { container } = render(<Eye size={100} />);
+    expect(container.querySelector('.upper-eyeliner')).toBeNull();
+    expect(container.querySelector('.lower-eyeliner')).toBeNull();
+  });
+
+  it('hangs the upper liner off the lid it belongs to, with no seam between them', () => {
+    const { container } = render(
+      <Eye size={100} scleraHeight={60} lidSize={20} eyelinerSize={10} />
+    );
+    const lid = container.querySelector('.upper-lid');
+    const liner = container.querySelector('.upper-eyeliner');
+    // the liner starts where the lid starts and runs 10% of the sclera half-height
+    // (30 * 10% = 3) past its bottom edge, so the lid covers all but the overhang
+    expect(liner.getAttribute('y')).toBe(lid.getAttribute('y'));
+    expect(liner.getAttribute('height')).toBe('33');
+    expect(lid.getAttribute('height')).toBe('30');
+  });
+
+  it('sits the lower liner on top of the lower lid', () => {
+    const { container } = render(
+      <Eye size={100} scleraHeight={60} lidSize={20} eyelinerSize={10} />
+    );
+    const lid = container.querySelector('.lower-lid');
+    const liner = container.querySelector('.lower-eyeliner');
+    expect(Number(liner.getAttribute('y'))).toBe(Number(lid.getAttribute('y')) - 3);
+    expect(liner.getAttribute('height')).toBe('33');
+  });
+
+  it('is filled geometry that moves and clips with the lids', () => {
+    const { container } = render(<Eye size={100} eyelinerSize={10} eyelinerColor='#123456' blinkSpeed={120} />);
+    const liner = container.querySelector('.upper-eyeliner');
+    expect(liner.tagName.toLowerCase()).toBe('rect');
+    expect(liner.getAttribute('fill')).toBe('#123456');
+    expect(liner.getAttribute('stroke')).toBeNull();
+    // same mask and same transition as the lid, so the two never come apart
+    expect(liner.closest('.eyelids').getAttribute('mask'))
+      .toBe(container.querySelector('.lens').getAttribute('mask'));
+    expect(liner.style.transition).toBe(container.querySelector('.upper-lid').style.transition);
+  });
+
+  it('takes each side from the shared props, and lets a side override them', () => {
+    const { container } = render(
+      <Eye size={100} eyelinerSize={10} eyelinerColor='#111111'
+        lowerEyelinerSize={20} lowerEyelinerColor='#222222' />
+    );
+    expect(container.querySelector('.upper-eyeliner').getAttribute('height')).toBe('55'); // 50 + 5
+    expect(container.querySelector('.upper-eyeliner').getAttribute('fill')).toBe('#111111');
+    expect(container.querySelector('.lower-eyeliner').getAttribute('height')).toBe('60'); // 50 + 10
+    expect(container.querySelector('.lower-eyeliner').getAttribute('fill')).toBe('#222222');
+  });
+});
+
+describe('Eye outline', () => {
+  it('renders no outline by default', () => {
+    const { container } = render(<Eye size={100} />);
+    expect(container.querySelector('.eye-outline')).toBeNull();
+  });
+
+  it('draws the ring as one evenodd path holding the outer and inner ellipses', () => {
+    const { container } = render(
+      <Eye size={100} scleraWidth={80} scleraHeight={60} eyeOutlineThickness={10}
+        eyeOutlineColor='#123456' />
+    );
+    const outline = container.querySelector('.eye-outline');
+    expect(outline.tagName.toLowerCase()).toBe('path');
+    expect(outline.getAttribute('fill')).toBe('#123456');
+    expect(outline.getAttribute('fill-rule')).toBe('evenodd');
+    // no stroke: the ring is the hollow area between the two ellipse subpaths
+    expect(outline.getAttribute('stroke')).toBeNull();
+    // taken out of each sclera radius in turn, so an elliptical eye keeps its shape
+    expect(outline.getAttribute('d'))
+      .toBe('M -40 0 A 40 30 0 1 0 40 0 A 40 30 0 1 0 -40 0 Z '
+        + 'M -36 0 A 36 27 0 1 0 36 0 A 36 27 0 1 0 -36 0 Z');
+  });
+
+  it('leaves the sclera and the lids at their own size, framing them last', () => {
+    const { container } = render(
+      <Eye size={100} scleraWidth={80} scleraHeight={60} eyeOutlineThickness={10} />
+    );
+    const sclera = container.querySelector('.sclera');
+    expect(sclera.getAttribute('rx')).toBe('40'); // unchanged by the outline
+    expect(sclera.getAttribute('ry')).toBe('30');
+    const drawn = [...container.querySelector('.eye').children].map((el) => el.getAttribute('class'));
+    expect(drawn).toEqual(['sclera', 'lens', 'eyelids', 'eye-outline']);
+  });
+});
+
 describe('Eye rotation', () => {
   it('rotates the whole eye around the centre of the drawing area', () => {
     const { container } = render(<Eye size={100} rotation={-45} />);

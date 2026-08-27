@@ -18,6 +18,9 @@ export const Eye = (props) => {
     scleraHeight = 100,
     scleraColor = '#ffffff',
     scleraStyle = {},
+    eyeOutlineThickness = 0,
+    eyeOutlineColor = '#000000',
+    eyeOutlineStyle = {},
     lensPosition = [0, 0],
     rotation = 0,
     rotationSpeed = 0,
@@ -34,6 +37,12 @@ export const Eye = (props) => {
     pupilHeight = pupilSize,
     pupilColor = '#000000',
     pupilStyle = {},
+    catchlightSize = 0,
+    catchlightWidth = catchlightSize,
+    catchlightHeight = catchlightSize,
+    catchlightPosition = [-40, -40],
+    catchlightColor = '#ffffff',
+    catchlightStyle = {},
     lidSize = 20,
     lidColor = '#aaaaaa',
     upperLidSize = lidSize,
@@ -42,6 +51,14 @@ export const Eye = (props) => {
     lowerLidSize = lidSize,
     lowerLidColor = lidColor,
     lowerLidStyle = {},
+    eyelinerSize = 0,
+    eyelinerColor = '#000000',
+    upperEyelinerSize = eyelinerSize,
+    upperEyelinerColor = eyelinerColor,
+    upperEyelinerStyle = {},
+    lowerEyelinerSize = eyelinerSize,
+    lowerEyelinerColor = eyelinerColor,
+    lowerEyelinerStyle = {},
     blinking = false,
     blinkSqueeze = false,
     blinkSpeed = (typeof blinking === 'number') ? blinking : 80,
@@ -107,6 +124,9 @@ export const Eye = (props) => {
   // calculate actual radius in pixels from percentage (50px is half of the viewbox)
   const scleraRadiusX = 50 / 100 * scleraWidth;
   const scleraRadiusY = 50 / 100 * scleraHeight;
+  // the outline eats inwards from the sclera edge the way the limbus does inside
+  // the iris, so switching it on never grows the eye past the drawing area
+  const eyeOutlineRatio = Math.min(100, Math.max(0, eyeOutlineThickness)) / 100;
   // a circular iris/pupil is sized against the smaller parent radius so it always
   // fits inside an elliptical parent
   const irisRadiusX = (irisWidth === irisHeight)
@@ -127,10 +147,25 @@ export const Eye = (props) => {
   const pupilRadiusY = (pupilWidth === pupilHeight)
     ? Math.min(irisRadiusX, irisRadiusY) / 100 * pupilHeight
     : irisRadiusY / 100 * pupilHeight;
+  // the catchlight measures against the full outer iris, limbus included, so a
+  // limbus never resizes or shifts it
+  const catchlightRadiusX = (catchlightWidth === catchlightHeight)
+    ? Math.min(irisRadiusX, irisRadiusY) / 100 * catchlightWidth
+    : irisRadiusX / 100 * catchlightWidth;
+  const catchlightRadiusY = (catchlightWidth === catchlightHeight)
+    ? Math.min(irisRadiusX, irisRadiusY) / 100 * catchlightHeight
+    : irisRadiusY / 100 * catchlightHeight;
+  // ... and travels the slack between itself and that iris edge, exactly the way
+  // lensPosition moves the lens inside the sclera
+  const catchlightOffsetX = (irisRadiusX - catchlightRadiusX) / 100 * catchlightPosition[0];
+  const catchlightOffsetY = (irisRadiusY - catchlightRadiusY) / 100 * catchlightPosition[1];
 
   const upperLidHeight = scleraRadiusY / 100 * updatedUpperLidSize;
   const upperLidY = 50 - 2 * scleraRadiusY + upperLidHeight;
   const lowerLidY = 50 + scleraRadiusY - (scleraRadiusY / 100 * updatedLowerLidSize);
+  // eyeliner is a share of the sclera half-height, like the lids it belongs to
+  const upperEyelinerHeight = scleraRadiusY / 100 * Math.max(0, upperEyelinerSize);
+  const lowerEyelinerHeight = scleraRadiusY / 100 * Math.max(0, lowerEyelinerSize);
 
   // calculate real lens position from percentage
   const lensOffsetX = (scleraRadiusX - irisRadiusX) / 100 * updatedLensPosition[0];
@@ -182,14 +217,45 @@ export const Eye = (props) => {
               ) : null}
               <ellipse className='pupil' fill={pupilColor} rx={pupilRadiusX} ry={pupilRadiusY}
                 transform='translate(50, 50)' style={pupilStyle} />
+              {/* last inside the moving lens: the glint sits over the iris and the
+                  pupil alike, so it may cross the edge of either */}
+              {(catchlightRadiusX > 0 && catchlightRadiusY > 0) ? (
+                <ellipse className='catchlight' fill={catchlightColor}
+                  rx={catchlightRadiusX} ry={catchlightRadiusY}
+                  transform={'translate(' + (50 + catchlightOffsetX) + ', ' + (50 + catchlightOffsetY) + ')'}
+                  style={catchlightStyle} />
+              ) : null}
             </g>
           </g>
           <g className='eyelids' mask={'url(#' + maskId + ')'}>
+            {/* eyeliner is the lid's own margin thickened: each liner runs from
+                its lid's outer edge to `height` past the inner one, and the lid
+                paints over everything but that overhang, so the two share one
+                edge (no seam) and one transition */}
+            {upperEyelinerHeight > 0 ? (
+              <rect className='upper-eyeliner' fill={upperEyelinerColor}
+                width='100%' height={scleraRadiusY + upperEyelinerHeight} y={upperLidY}
+                style={{ ...lidTransition, ...upperEyelinerStyle }} />
+            ) : null}
             <rect className='upper-lid' fill={upperLidColor} width='100%' height={scleraRadiusY}
               y={upperLidY} style={{ ...lidTransition, ...upperLidStyle }} />
+            {lowerEyelinerHeight > 0 ? (
+              <rect className='lower-eyeliner' fill={lowerEyelinerColor}
+                width='100%' height={scleraRadiusY + lowerEyelinerHeight}
+                y={lowerLidY - lowerEyelinerHeight}
+                style={{ ...lidTransition, ...lowerEyelinerStyle }} />
+            ) : null}
             <rect className='lower-lid' fill={lowerLidColor} width='100%' height={scleraRadiusY}
               y={lowerLidY} style={{ ...lidTransition, ...lowerLidStyle }} />
           </g>
+          {/* the outline frames everything, lids included, so it stays the edge of
+              the eye however far the lids come down */}
+          {eyeOutlineRatio > 0 ? (
+            <path className='eye-outline' fill={eyeOutlineColor} fillRule='evenodd'
+              d={ellipsePath(scleraRadiusX, scleraRadiusY) + ' '
+                + ellipsePath(scleraRadiusX * (1 - eyeOutlineRatio), scleraRadiusY * (1 - eyeOutlineRatio))}
+              transform='translate(50, 50)' style={eyeOutlineStyle} />
+          ) : null}
         </g>
       </g>
     </svg>

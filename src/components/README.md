@@ -67,7 +67,18 @@ it always stays inside an elliptical parent.
 the iris rather than added around it: `limbusThickness={10}` colours the outer 10% of
 the iris and shrinks the coloured centre to the remaining 90%. The iris keeps the size
 `irisSize` gives it, so adding a limbus never grows the iris, resizes the pupil or
-changes how far the eye can look.
+changes how far the eye can look. `eyeOutlineThickness` works the same way one level
+up, taking the outer share of the sclera radii, so switching an outline on never pushes
+the eye past the drawing area.
+
+`catchlightSize` measures against the **full outer iris**, limbus included, and
+`catchlightPosition` moves the glint through the slack left between it and that outer
+edge - the same −100..100 scale `lensPosition` uses inside the sclera. Adding a limbus
+therefore never resizes or shifts the catchlight.
+
+Both eyelid sizes and both eyeliner sizes are percentages of the sclera half-height.
+The eyeliner belongs to the lid margins rather than to the eye as a whole, so it rides
+the lids up and down as they blink.
 
 The drawing area is square and the eye always keeps its proportions: equal
 `scleraWidth` and `scleraHeight` render a perfect circle. If `width` and `height`
@@ -82,6 +93,8 @@ differ, the drawing is scaled to fit and centred rather than stretched.
 | `scleraWidth` | number | `100` | Eye outline width, % of the drawing area |
 | `scleraHeight` | number | `100` | Eye outline height, % of the drawing area |
 | `scleraColor` | string | `'#ffffff'` | Sclera fill colour |
+| `eyeOutlineThickness` | number | `0` | Outline around the eye, % of the sclera radius. Taken out of the sclera, like the limbus, and drawn over the eyelids. `0` renders no outline |
+| `eyeOutlineColor` | string | `'#000000'` | Eye outline fill colour |
 | `irisSize` | number | `60` | Iris width and height, % of the sclera |
 | `irisWidth`, `irisHeight` | number | `irisSize` | Set iris dimensions separately |
 | `irisColor` | string | `'#666666'` | Iris fill colour |
@@ -90,10 +103,18 @@ differ, the drawing is scaled to fit and centred rather than stretched.
 | `pupilSize` | number | `50` | Pupil width and height, % of the iris |
 | `pupilWidth`, `pupilHeight` | number | `pupilSize` | Set pupil dimensions separately (e.g. `pupilWidth={14} pupilHeight={90}` for a cat's slit) |
 | `pupilColor` | string | `'#000000'` | Pupil fill colour |
+| `catchlightSize` | number | `0` | Catchlight width and height, % of the full outer iris (limbus included). `0` renders no catchlight |
+| `catchlightWidth`, `catchlightHeight` | number | `catchlightSize` | Set catchlight dimensions separately |
+| `catchlightPosition` | `[x, y]` | `[-40, -40]` | Where the glint sits inside the iris; each axis −100 (left/top) to 100 (right/bottom) |
+| `catchlightColor` | string | `'#ffffff'` | Catchlight fill colour |
 | `lidSize` | number | `20` | Both eyelid sizes, % of the sclera half-height |
 | `upperLidSize`, `lowerLidSize` | number | `lidSize` | Set eyelid sizes separately |
 | `lidColor` | string | `'#aaaaaa'` | Both eyelid colours |
 | `upperLidColor`, `lowerLidColor` | string | `lidColor` | Set eyelid colours separately |
+| `eyelinerSize` | number | `0` | Both eyeliner thicknesses, % of the sclera half-height. Drawn along the lid margins, so it moves with them. `0` renders no eyeliner |
+| `upperEyelinerSize`, `lowerEyelinerSize` | number | `eyelinerSize` | Set eyeliner thicknesses separately |
+| `eyelinerColor` | string | `'#000000'` | Both eyeliner colours |
+| `upperEyelinerColor`, `lowerEyelinerColor` | string | `eyelinerColor` | Set eyeliner colours separately |
 | `lensPosition` | `[x, y]` | `[0, 0]` | Where the eye looks; each axis −100 (left/top) to 100 (right/bottom) |
 | `lensMovement` | boolean \| number | `false` | Wander randomly; a number sets the interval in ms (default 1000) |
 | `lensSpeed` | number | `500` | Lens movement transition duration, ms |
@@ -105,7 +126,7 @@ differ, the drawing is scaled to fit and centred rather than stretched.
 | `blinkSqueeze` | boolean | `false` | Squash the whole eye vertically while blinking |
 | `title` | string | - | Accessible name (rendered as an SVG `<title>`) |
 | `className`, `style` | - | - | Passed through to the `<svg>` element |
-| `scleraStyle`, `irisStyle`, `limbusStyle`, `pupilStyle`, `upperLidStyle`, `lowerLidStyle` | object | `{}` | Inline styles for the individual shapes |
+| `scleraStyle`, `eyeOutlineStyle`, `irisStyle`, `limbusStyle`, `pupilStyle`, `catchlightStyle`, `upperLidStyle`, `lowerLidStyle`, `upperEyelinerStyle`, `lowerEyelinerStyle` | object | `{}` | Inline styles for the individual shapes |
 
 ## Recipes
 
@@ -241,6 +262,74 @@ follows an elliptical one on both axes:
 The ring is a filled shape rather than a stroke, so it never spills outside the iris,
 and `limbusThickness={0}` (the default) draws no ring at all.
 
+### A catchlight, for the wet look
+
+`catchlightSize` adds the glint of light every drawn eye has. It rides along with the
+iris and pupil as the eye looks around, and it is painted over both, so it can sit
+half on the pupil and half on the iris the way a real reflection does:
+
+```jsx
+<Eye
+  size={100}
+  scleraWidth={82} scleraHeight={82}
+  irisSize={45} irisColor='#16A34A'
+  pupilSize={55}
+  catchlightSize={28} catchlightPosition={[-45, -45]}
+  blinking
+/>
+```
+
+`catchlightPosition` runs from −100 to 100 on each axis, measured against the full
+outer iris, so `[-45, -45]` is the usual up-and-to-the-left highlight and `[0, 0]`
+centres it on the pupil. Give it its own width and height for a drawn-out gleam:
+
+```jsx
+<Eye size={100} catchlightWidth={16} catchlightHeight={30} catchlightColor='#8FA8FF' />
+```
+
+### Eyeliner along the lid margins
+
+`eyelinerSize` darkens the edge of each eyelid - the underside of the upper one, the
+top of the lower one - so the line follows the lids as they blink instead of sitting
+still around the eye:
+
+```jsx
+<Eye
+  size={100}
+  scleraWidth={72} scleraHeight={66} scleraColor='#f6edd2'
+  irisSize={95} irisColor='#E8A33D'
+  pupilWidth={14} pupilHeight={90}
+  upperLidSize={12} lowerLidSize={8} lidColor='#8a6d3b'
+  eyelinerSize={9} eyelinerColor='#3a2a12'
+  blinking
+/>
+```
+
+Each side can be set on its own, so a heavy top line over a hint of a bottom one is
+`upperEyelinerSize={12} lowerEyelinerSize={4}`.
+
+### An outline around the whole eye
+
+`eyeOutlineThickness` inks a ring around the sclera. Like the limbus it is a filled
+ring rather than a stroke, and it is taken out of the sclera rather than added around
+it, so the eye keeps its size. It is drawn over the eyelids, so it frames the eye
+however far the lids come down:
+
+```jsx
+<Eye
+  size={100}
+  scleraWidth={80} scleraHeight={80} scleraColor='#f7c948'
+  eyeOutlineThickness={6} eyeOutlineColor='#3f6212'
+  irisSize={70} irisColor='#b45309'
+  pupilWidth={85} pupilHeight={30}
+  lidSize={10} lidColor='#3f6212'
+  blinking
+/>
+```
+
+The thickness is a share of each sclera radius in turn, so an elliptical eye gets an
+outline that follows its own shape rather than a circular one.
+
 ### Sleepy, half-closed eyes
 
 A heavy upper lid does the trick:
@@ -325,6 +414,20 @@ rendering and hydration work as expected; animation starts on the client.
 - **New:** `limbusThickness`, `limbusColor` and `limbusStyle` props, drawing the darker
   ring around the iris. The ring is taken out of the existing iris dimensions, so
   enabling it leaves the iris size, the pupil and the eye's movement untouched.
+
+### v2.3
+
+- **New:** `catchlightSize`, `catchlightWidth`, `catchlightHeight`,
+  `catchlightPosition`, `catchlightColor` and `catchlightStyle`. The glint is measured
+  and placed against the full outer iris, limbus and all, travels with the lens, and is
+  drawn over both iris and pupil so it can cross the edge of either.
+- **New:** `eyelinerSize`, `eyelinerColor`, `upperEyelinerSize`, `upperEyelinerColor`,
+  `upperEyelinerStyle`, `lowerEyelinerSize`, `lowerEyelinerColor` and
+  `lowerEyelinerStyle`, darkening the eyelid margins. The liner belongs to the lids, so
+  it moves with every blink.
+- **New:** `eyeOutlineThickness`, `eyeOutlineColor` and `eyeOutlineStyle`, inking a
+  filled ring around the sclera over the top of the eyelids.
+- All three default to `0` and render nothing until switched on.
 
 ## Licence
 

@@ -107,11 +107,16 @@ const theme = createTheme({
 // what the demo starts with
 const initialConfig = {
   scleraWidth: 70, scleraHeight: 50, scleraColor: '#FFFFFF',
+  eyeOutlineThickness: 0, eyeOutlineColor: '#000000',
   irisWidth: 80, irisHeight: 80, irisColor: '#3E7BFA',
   limbusThickness: 0, limbusColor: '#000000',
   pupilWidth: 30, pupilHeight: 30, pupilColor: '#000000',
+  catchlightWidth: 0, catchlightHeight: 0,
+  catchlightPosition: [-40, -40], catchlightColor: '#FFFFFF',
   upperLidSize: 20, upperLidColor: '#AAAAAA',
   lowerLidSize: 20, lowerLidColor: '#AAAAAA',
+  upperEyelinerSize: 0, upperEyelinerColor: '#000000',
+  lowerEyelinerSize: 0, lowerEyelinerColor: '#000000',
   rotation: 0,
   // where the lens rests while the eye is still; the animated modes drive their
   // own position and leave this one untouched
@@ -133,6 +138,8 @@ const presets = {
     irisWidth: 100, irisHeight: 100, irisColor: '#FF7700',
     limbusThickness: 9, limbusColor: '#8A3B00', // a burnt rim around the amber
     pupilWidth: 10, pupilHeight: 80, pupilColor: '#000000',
+    // the wet shine off the spectacle scale, well clear of the slit pupil
+    catchlightWidth: 16, catchlightHeight: 16, catchlightPosition: [-50, -55],
     upperLidSize: 0, lowerLidSize: 0,
     blinking: false,
   },
@@ -142,8 +149,11 @@ const presets = {
     irisWidth: 70, irisHeight: 65, irisColor: '#559933',
     limbusThickness: 15, limbusColor: '#2E4A1C', // murky edge, for the decay
     pupilWidth: 50, pupilHeight: 50, pupilColor: '#330000',
+    // no catchlight: dead eyes have no shine left in them
     upperLidSize: 35, upperLidColor: '#557755',
     lowerLidSize: 20, lowerLidColor: '#557755',
+    upperEyelinerSize: 8, upperEyelinerColor: '#3B4A2E', // a murky, sunken rim
+    lowerEyelinerSize: 5, lowerEyelinerColor: '#3B4A2E',
     blinkSpeed: 250, blinkFrequency: 5000,
   },
   Cat: {
@@ -152,8 +162,12 @@ const presets = {
     irisWidth: 95, irisHeight: 95, irisColor: '#E8A33D',
     limbusThickness: 9, limbusColor: '#7A4A12', // cats have a strong dark rim
     pupilWidth: 14, pupilHeight: 90, pupilColor: '#1C1C1C',
+    catchlightWidth: 18, catchlightHeight: 18, catchlightPosition: [-45, -50],
     upperLidSize: 12, upperLidColor: '#8A6D3B',
     lowerLidSize: 8, lowerLidColor: '#8A6D3B',
+    // the dark tabby line along both lid margins
+    upperEyelinerSize: 9, upperEyelinerColor: '#3A2A12',
+    lowerEyelinerSize: 6, lowerEyelinerColor: '#3A2A12',
     blinkSpeed: 200, blinkFrequency: 4500, // the languid cat blink
   },
   Sleepy: {
@@ -163,14 +177,19 @@ const presets = {
     pupilWidth: 40, pupilHeight: 40, pupilColor: '#2A2438',
     upperLidSize: 55, upperLidColor: '#D9B8A6',
     lowerLidSize: 25, lowerLidColor: '#D9B8A6',
+    // just the lash line under the heavy lid; nothing along the bottom
+    upperEyelinerSize: 8, upperEyelinerColor: '#B08878',
     blinkSpeed: 300, blinkFrequency: 2200,
     movement: 'still', // too drowsy to look around
   },
   Surprised: {
     ...initialConfig,
     scleraWidth: 82, scleraHeight: 82, scleraColor: '#FFFFFF',
+    eyeOutlineThickness: 5, eyeOutlineColor: '#1A1A1A', // inked, like a comic panel
     irisWidth: 45, irisHeight: 45, irisColor: '#16A34A',
     pupilWidth: 55, pupilHeight: 55, pupilColor: '#000000',
+    // a big startled glint, crossing from the pupil out onto the iris
+    catchlightWidth: 28, catchlightHeight: 28, catchlightPosition: [-45, -45],
     upperLidSize: 0, lowerLidSize: 0,
     blinking: false,
   },
@@ -182,6 +201,9 @@ const presets = {
     // lighter than the iris for once: a cold rim that finds the eye in the dark
     limbusThickness: 10, limbusColor: '#4B4B8F',
     pupilWidth: 55, pupilHeight: 55, pupilColor: '#000000',
+    // a cold, drawn-out gleam down the dome
+    catchlightWidth: 16, catchlightHeight: 26, catchlightPosition: [-45, -55],
+    catchlightColor: '#8FA8FF',
     upperLidSize: 0, upperLidColor: '#0D0D15',
     lowerLidSize: 0, lowerLidColor: '#0D0D15',
     blinkSpeed: 160, blinkFrequency: 6000,
@@ -189,9 +211,11 @@ const presets = {
   Frog: {
     ...initialConfig,
     scleraWidth: 80, scleraHeight: 80, scleraColor: '#F7C948',
+    eyeOutlineThickness: 6, eyeOutlineColor: '#3F6212', // the wet rim of the bulge
     irisWidth: 70, irisHeight: 70, irisColor: '#B45309',
     limbusThickness: 12, limbusColor: '#5C2308',
     pupilWidth: 85, pupilHeight: 30, pupilColor: '#101010',
+    catchlightWidth: 14, catchlightHeight: 14, catchlightPosition: [-45, -55],
     upperLidSize: 10, upperLidColor: '#3F6212',
     lowerLidSize: 10, lowerLidColor: '#3F6212',
     blinkFrequency: 4200,
@@ -211,10 +235,13 @@ const defaultEyeSize = presetDisplaySize.Default;
 // the Eye component's own defaults, used to emit only non-default props
 const eyeDefaults = {
   scleraWidth: 100, scleraHeight: 100, scleraColor: '#FFFFFF',
+  eyeOutlineThickness: 0, eyeOutlineColor: '#000000',
   irisSize: 60, irisColor: '#666666',
   limbusThickness: 0, limbusColor: '#000000',
   pupilSize: 50, pupilColor: '#000000',
+  catchlightSize: 0, catchlightPosition: [-40, -40], catchlightColor: '#FFFFFF',
   lidSize: 20, lidColor: '#AAAAAA',
+  eyelinerSize: 0, eyelinerColor: '#000000',
   rotation: 0,
   blinkSpeed: 80, blinkFrequency: 3000,
 };
@@ -231,6 +258,10 @@ function diffEyeProps(config, lensPosition = config.lensPosition) {
   if (config.scleraWidth !== eyeDefaults.scleraWidth) add('scleraWidth', config.scleraWidth);
   if (config.scleraHeight !== eyeDefaults.scleraHeight) add('scleraHeight', config.scleraHeight);
   if (config.scleraColor !== eyeDefaults.scleraColor) add('scleraColor', config.scleraColor);
+  if (config.eyeOutlineThickness !== eyeDefaults.eyeOutlineThickness) {
+    add('eyeOutlineThickness', config.eyeOutlineThickness);
+    if (config.eyeOutlineColor !== eyeDefaults.eyeOutlineColor) add('eyeOutlineColor', config.eyeOutlineColor);
+  }
 
   if (config.irisWidth === config.irisHeight) {
     if (config.irisWidth !== eyeDefaults.irisSize) add('irisSize', config.irisWidth);
@@ -254,6 +285,21 @@ function diffEyeProps(config, lensPosition = config.lensPosition) {
   }
   if (config.pupilColor !== eyeDefaults.pupilColor) add('pupilColor', config.pupilColor);
 
+  if (config.catchlightWidth === config.catchlightHeight) {
+    if (config.catchlightWidth !== eyeDefaults.catchlightSize) add('catchlightSize', config.catchlightWidth);
+  } else {
+    add('catchlightWidth', config.catchlightWidth);
+    add('catchlightHeight', config.catchlightHeight);
+  }
+  // the position and colour only matter once there is a glint to place
+  if (config.catchlightWidth > 0 && config.catchlightHeight > 0) {
+    const [catchlightX, catchlightY] = config.catchlightPosition;
+    if (catchlightX !== eyeDefaults.catchlightPosition[0] || catchlightY !== eyeDefaults.catchlightPosition[1]) {
+      add('catchlightPosition', [catchlightX, catchlightY]);
+    }
+    if (config.catchlightColor !== eyeDefaults.catchlightColor) add('catchlightColor', config.catchlightColor);
+  }
+
   if (config.upperLidSize === config.lowerLidSize) {
     if (config.upperLidSize !== eyeDefaults.lidSize) add('lidSize', config.upperLidSize);
   } else {
@@ -265,6 +311,26 @@ function diffEyeProps(config, lensPosition = config.lensPosition) {
   } else {
     add('upperLidColor', config.upperLidColor);
     add('lowerLidColor', config.lowerLidColor);
+  }
+
+  if (config.upperEyelinerSize === config.lowerEyelinerSize) {
+    if (config.upperEyelinerSize !== eyeDefaults.eyelinerSize) add('eyelinerSize', config.upperEyelinerSize);
+  } else {
+    add('upperEyelinerSize', config.upperEyelinerSize);
+    add('lowerEyelinerSize', config.lowerEyelinerSize);
+  }
+  // only a side with a line to draw needs a colour, so a one-sided liner never
+  // drags the other side's unused colour into the snippet
+  const eyelinerColored = {
+    upper: config.upperEyelinerSize > 0 && config.upperEyelinerColor !== eyeDefaults.eyelinerColor,
+    lower: config.lowerEyelinerSize > 0 && config.lowerEyelinerColor !== eyeDefaults.eyelinerColor,
+  };
+  if (eyelinerColored.upper && eyelinerColored.lower
+    && config.upperEyelinerColor === config.lowerEyelinerColor) {
+    add('eyelinerColor', config.upperEyelinerColor);
+  } else {
+    if (eyelinerColored.upper) add('upperEyelinerColor', config.upperEyelinerColor);
+    if (eyelinerColored.lower) add('lowerEyelinerColor', config.lowerEyelinerColor);
   }
 
   if (config.rotation !== eyeDefaults.rotation) add('rotation', config.rotation);
@@ -319,11 +385,16 @@ function parseShareParams(search) {
   const config = {
     ...initialConfig, // key order matters: preset matching compares JSON strings
     scleraWidth: eyeDefaults.scleraWidth, scleraHeight: eyeDefaults.scleraHeight, scleraColor: eyeDefaults.scleraColor,
+    eyeOutlineThickness: eyeDefaults.eyeOutlineThickness, eyeOutlineColor: eyeDefaults.eyeOutlineColor,
     irisWidth: eyeDefaults.irisSize, irisHeight: eyeDefaults.irisSize, irisColor: eyeDefaults.irisColor,
     limbusThickness: eyeDefaults.limbusThickness, limbusColor: eyeDefaults.limbusColor,
     pupilWidth: eyeDefaults.pupilSize, pupilHeight: eyeDefaults.pupilSize, pupilColor: eyeDefaults.pupilColor,
+    catchlightWidth: eyeDefaults.catchlightSize, catchlightHeight: eyeDefaults.catchlightSize,
+    catchlightPosition: [...eyeDefaults.catchlightPosition], catchlightColor: eyeDefaults.catchlightColor,
     upperLidSize: eyeDefaults.lidSize, upperLidColor: eyeDefaults.lidColor,
     lowerLidSize: eyeDefaults.lidSize, lowerLidColor: eyeDefaults.lidColor,
+    upperEyelinerSize: eyeDefaults.eyelinerSize, upperEyelinerColor: eyeDefaults.eyelinerColor,
+    lowerEyelinerSize: eyeDefaults.eyelinerSize, lowerEyelinerColor: eyeDefaults.eyelinerColor,
     rotation: eyeDefaults.rotation,
     lensPosition: [0, 0],
     blinking: false, blinkSqueeze: false,
@@ -354,6 +425,9 @@ function parseShareParams(search) {
   num('scleraHeight', 0, 100, (v) => { config.scleraHeight = v; });
   color('scleraColor', (v) => { config.scleraColor = v; });
 
+  num('eyeOutlineThickness', 0, 100, (v) => { config.eyeOutlineThickness = v; });
+  color('eyeOutlineColor', (v) => { config.eyeOutlineColor = v; });
+
   // shorthands first so the specific params win if a hand-edited URL has both
   num('irisSize', 0, 100, (v) => { config.irisWidth = v; config.irisHeight = v; });
   num('irisWidth', 0, 100, (v) => { config.irisWidth = v; });
@@ -368,6 +442,11 @@ function parseShareParams(search) {
   num('pupilHeight', 0, 100, (v) => { config.pupilHeight = v; });
   color('pupilColor', (v) => { config.pupilColor = v; });
 
+  num('catchlightSize', 0, 100, (v) => { config.catchlightWidth = v; config.catchlightHeight = v; });
+  num('catchlightWidth', 0, 100, (v) => { config.catchlightWidth = v; });
+  num('catchlightHeight', 0, 100, (v) => { config.catchlightHeight = v; });
+  color('catchlightColor', (v) => { config.catchlightColor = v; });
+
   num('lidSize', 0, 100, (v) => { config.upperLidSize = v; config.lowerLidSize = v; });
   num('upperLidSize', 0, 100, (v) => { config.upperLidSize = v; });
   num('lowerLidSize', 0, 100, (v) => { config.lowerLidSize = v; });
@@ -375,17 +454,26 @@ function parseShareParams(search) {
   color('upperLidColor', (v) => { config.upperLidColor = v; });
   color('lowerLidColor', (v) => { config.lowerLidColor = v; });
 
+  num('eyelinerSize', 0, 100, (v) => { config.upperEyelinerSize = v; config.lowerEyelinerSize = v; });
+  num('upperEyelinerSize', 0, 100, (v) => { config.upperEyelinerSize = v; });
+  num('lowerEyelinerSize', 0, 100, (v) => { config.lowerEyelinerSize = v; });
+  color('eyelinerColor', (v) => { config.upperEyelinerColor = v; config.lowerEyelinerColor = v; });
+  color('upperEyelinerColor', (v) => { config.upperEyelinerColor = v; });
+  color('lowerEyelinerColor', (v) => { config.lowerEyelinerColor = v; });
+
   // the Eye itself takes any angle, but the demo's slider is a single turn
   num('rotation', -180, 180, (v) => { config.rotation = v; });
 
   // "x,y", each clamped to the axis sliders' range; a malformed half is dropped
-  if (params.has('lensPosition')) {
-    const [x, y] = params.get('lensPosition').split(',').map(Number);
-    if (Number.isFinite(x) && Number.isFinite(y)) {
-      found = true;
-      config.lensPosition = [x, y].map((v) => Math.min(100, Math.max(-100, v)));
-    }
-  }
+  const axisPair = (name, apply) => {
+    if (!params.has(name)) return;
+    const [x, y] = params.get(name).split(',').map(Number);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+    found = true;
+    apply([x, y].map((v) => Math.min(100, Math.max(-100, v))));
+  };
+  axisPair('lensPosition', (v) => { config.lensPosition = v; });
+  axisPair('catchlightPosition', (v) => { config.catchlightPosition = v; });
 
   flag('blinking', (v) => { config.blinking = v; });
   num('blinkSpeed', 30, 400, (v) => { config.blinkSpeed = v; });
@@ -535,6 +623,8 @@ const eyeProps = (config, lensPosition) => ({
   scleraWidth: config.scleraWidth,
   scleraHeight: config.scleraHeight,
   scleraColor: config.scleraColor,
+  eyeOutlineThickness: config.eyeOutlineThickness,
+  eyeOutlineColor: config.eyeOutlineColor,
   irisWidth: config.irisWidth,
   irisHeight: config.irisHeight,
   irisColor: config.irisColor,
@@ -543,10 +633,18 @@ const eyeProps = (config, lensPosition) => ({
   pupilWidth: config.pupilWidth,
   pupilHeight: config.pupilHeight,
   pupilColor: config.pupilColor,
+  catchlightWidth: config.catchlightWidth,
+  catchlightHeight: config.catchlightHeight,
+  catchlightPosition: config.catchlightPosition,
+  catchlightColor: config.catchlightColor,
   upperLidSize: config.upperLidSize,
   upperLidColor: config.upperLidColor,
   lowerLidSize: config.lowerLidSize,
   lowerLidColor: config.lowerLidColor,
+  upperEyelinerSize: config.upperEyelinerSize,
+  upperEyelinerColor: config.upperEyelinerColor,
+  lowerEyelinerSize: config.lowerEyelinerSize,
+  lowerEyelinerColor: config.lowerEyelinerColor,
   rotation: config.rotation,
   blinking: config.blinking,
   blinkSpeed: config.blinkSpeed,
@@ -640,6 +738,14 @@ function App() {
     ...c,
     lensPosition: axis === 0 ? [value, c.lensPosition[1]] : [c.lensPosition[0], value],
   }));
+  const setCatchlightAxis = (axis) => (value) => setConfig((c) => ({
+    ...c,
+    catchlightPosition: axis === 0
+      ? [value, c.catchlightPosition[1]]
+      : [c.catchlightPosition[0], value],
+  }));
+  // both axes need something to place before they mean anything
+  const catchlightOn = config.catchlightWidth > 0 && config.catchlightHeight > 0;
   const heroEye = {
     ...eyeProps(config, lensPosition),
     // the demo drives all movement itself (so multiple eyes stay in sync);
@@ -891,10 +997,72 @@ function App() {
                 min={500} max={8000} step={100} unit=' ms' disabled={!config.blinking} />
             </Stack>
           </Card>
+
+          <Card title='Catchlight' sx={{ animationDelay: '320ms' }}>
+            <Stack spacing={1}>
+              {/* the glint measures against the whole iris, limbus and all, so a
+                  limbus never resizes or shifts it */}
+              <ControlSlider label='Width' value={config.catchlightWidth} onChange={set('catchlightWidth')} />
+              <ControlSlider label='Height' value={config.catchlightHeight} onChange={set('catchlightHeight')} />
+              <Box>
+                <Typography variant='body2' sx={{
+                  mt: 1, mb: 0.5, fontWeight: 700,
+                  color: catchlightOn ? 'text.primary' : 'text.disabled',
+                }}>
+                  Position
+                </Typography>
+                {/* placed inside the iris the way the eye is placed inside the
+                    sclera, so it gets the same pair of centre-notched axes */}
+                <Box sx={{
+                  display: 'grid', columnGap: 3, rowGap: 0.5,
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(128px, 1fr))',
+                }}>
+                  <AxisSlider label='Catchlight position, horizontal' startLabel='Left' endLabel='Right'
+                    value={config.catchlightPosition[0]} onChange={setCatchlightAxis(0)}
+                    disabled={!catchlightOn} />
+                  <AxisSlider label='Catchlight position, vertical' startLabel='Up' endLabel='Down'
+                    value={config.catchlightPosition[1]} onChange={setCatchlightAxis(1)}
+                    disabled={!catchlightOn} />
+                </Box>
+              </Box>
+              <ColorControl label='Colour' value={config.catchlightColor} onChange={set('catchlightColor')}
+                disabled={!catchlightOn} sx={{ pt: 1 }} />
+            </Stack>
+          </Card>
+
+          <Card title='Eyeliner' sx={{ animationDelay: '380ms' }}>
+            <Stack spacing={1}>
+              {/* the liner belongs to the lid margins, so it rides the blink */}
+              <ControlSlider label='Upper eyeliner' value={config.upperEyelinerSize}
+                onChange={set('upperEyelinerSize')} />
+              <ControlSlider label='Lower eyeliner' value={config.lowerEyelinerSize}
+                onChange={set('lowerEyelinerSize')} />
+              <Box sx={{
+                display: 'grid', gap: 2, pt: 1,
+                gridTemplateColumns: 'repeat(auto-fit, minmax(132px, 1fr))',
+              }}>
+                <ColorControl label='Upper' value={config.upperEyelinerColor}
+                  onChange={set('upperEyelinerColor')} disabled={config.upperEyelinerSize === 0} />
+                <ColorControl label='Lower' value={config.lowerEyelinerColor}
+                  onChange={set('lowerEyelinerColor')} disabled={config.lowerEyelinerSize === 0} />
+              </Box>
+            </Stack>
+          </Card>
+
+          <Card title='Eye outline' sx={{ animationDelay: '440ms' }}>
+            <Stack spacing={1}>
+              {/* like the limbus, the ring is taken out of the sclera rather than
+                  added around it, so the eye never outgrows the drawing area */}
+              <ControlSlider label='Thickness' value={config.eyeOutlineThickness}
+                onChange={set('eyeOutlineThickness')} />
+              <ColorControl label='Colour' value={config.eyeOutlineColor} onChange={set('eyeOutlineColor')}
+                disabled={config.eyeOutlineThickness === 0} sx={{ pt: 1 }} />
+            </Stack>
+          </Card>
         </Box>
 
         {/* generated code */}
-        <Paper className='pop-in' sx={{ p: 2.5, bgcolor: INK, color: CREAM, animationDelay: '320ms' }}>
+        <Paper className='pop-in' sx={{ p: 2.5, bgcolor: INK, color: CREAM, animationDelay: '500ms' }}>
           <Stack direction='row' sx={{ mb: 1.5, justifyContent: 'space-between', alignItems: 'center' }}>
             <Typography variant='h6' sx={{ color: CREAM }}>Your eye, as code</Typography>
             <Stack direction='row' spacing={1}>
@@ -936,7 +1104,7 @@ function App() {
         </Paper>
 
         {/* about */}
-        <Box component='section' className='pop-in' sx={{ mt: 6, animationDelay: '380ms' }}>
+        <Box component='section' className='pop-in' sx={{ mt: 6, animationDelay: '560ms' }}>
           <Stack direction='row' spacing={1.5} sx={{ alignItems: 'center', mb: 2.5 }}>
             <Box sx={{ width: 40, height: 40, flexShrink: 0 }}>
               <Eye width='100%' height='100%' scleraWidth={92} scleraHeight={72}

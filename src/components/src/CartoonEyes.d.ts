@@ -16,6 +16,17 @@ export interface EyeProps {
   scleraColor?: string;
   scleraStyle?: React.CSSProperties;
 
+  /**
+   * Thickness of the outline drawn around the eye as a percentage (0-100) of the
+   * sclera radius. Like the limbus it is taken out of the sclera rather than added
+   * around it, so the eye never grows past the drawing area, and it is drawn over
+   * the eyelids so it always frames the whole eye. Default 0 (no outline rendered).
+   */
+  eyeOutlineThickness?: number;
+  /** Fill colour of the eye outline. Default `#000000`. */
+  eyeOutlineColor?: string;
+  eyeOutlineStyle?: React.CSSProperties;
+
   /** Sets both iris width and height as a percentage (0-100) of the sclera. Default 60. */
   irisSize?: number;
   irisWidth?: number;
@@ -43,6 +54,24 @@ export interface EyeProps {
   pupilColor?: string;
   pupilStyle?: React.CSSProperties;
 
+  /**
+   * Sets both catchlight width and height as a percentage (0-100) of the full
+   * outer iris, limbus included, so adding a limbus never resizes it. The
+   * catchlight is drawn over the iris and the pupil and travels with the lens.
+   * Default 0 (no catchlight rendered).
+   */
+  catchlightSize?: number;
+  catchlightWidth?: number;
+  catchlightHeight?: number;
+  /**
+   * Position of the catchlight within the iris: `[x, y]`, each from -100 (left/top)
+   * to 100 (right/bottom), measured against the full outer iris. Default `[-40, -40]`.
+   */
+  catchlightPosition?: [number, number];
+  /** Default `#ffffff`. */
+  catchlightColor?: string;
+  catchlightStyle?: React.CSSProperties;
+
   /** Sets both eyelid sizes as a percentage (0-100) of the sclera half-height. Default 20. */
   lidSize?: number;
   /** Sets both eyelid colours. Default `#aaaaaa`. */
@@ -53,6 +82,22 @@ export interface EyeProps {
   lowerLidSize?: number;
   lowerLidColor?: string;
   lowerLidStyle?: React.CSSProperties;
+
+  /**
+   * Sets both eyeliner thicknesses as a percentage (0-100) of the sclera
+   * half-height. The eyeliner belongs to the eyelid margins - along the bottom
+   * edge of the upper lid and the top edge of the lower one - so it moves with
+   * the lids as they blink. Default 0 (no eyeliner rendered).
+   */
+  eyelinerSize?: number;
+  /** Sets both eyeliner colours. Default `#000000`. */
+  eyelinerColor?: string;
+  upperEyelinerSize?: number;
+  upperEyelinerColor?: string;
+  upperEyelinerStyle?: React.CSSProperties;
+  lowerEyelinerSize?: number;
+  lowerEyelinerColor?: string;
+  lowerEyelinerStyle?: React.CSSProperties;
 
   /**
    * Position of the iris+pupil within the eye: `[x, y]`, each from -100 (left/top)
