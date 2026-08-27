@@ -1,13 +1,12 @@
 import * as React from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Box, Button, Collapse, Container, CssBaseline, GlobalStyles, IconButton, Link, Paper,
+  Box, Button, Container, CssBaseline, GlobalStyles, IconButton, Link, Paper,
   Slider, Stack, Switch, ToggleButton, ToggleButtonGroup, Tooltip, Typography,
 } from '@mui/material';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import FullscreenIcon from '@mui/icons-material/Fullscreen';
 import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { MuiColorInput } from 'mui-color-input';
 import { Eye, EyePair } from './components/src/CartoonEyes';
 
@@ -21,6 +20,7 @@ const CREAM = '#FBF3E4';
 const PAPER = '#FFFDF8';
 const CORAL = '#FF5D3A';
 const TEAL = '#0E9E9E';
+const TINT = '#FFF3DE'; // the warm wash behind panel headers and hover states
 
 // the page's halftone dots; the sticky stage repeats them so it blends into the
 // background as the settings scroll underneath it on a phone
@@ -39,6 +39,7 @@ const theme = createTheme({
     h1: { fontFamily: "'Fredoka', sans-serif", fontWeight: 600 },
     h2: { fontFamily: "'Fredoka', sans-serif", fontWeight: 600 },
     h6: { fontFamily: "'Fredoka', sans-serif", fontWeight: 600 },
+    overline: { fontFamily: "'Fredoka', sans-serif", fontWeight: 600, letterSpacing: '0.12em' },
     button: { fontFamily: "'Fredoka', sans-serif", fontWeight: 500, textTransform: 'none' },
   },
   shape: { borderRadius: 18 },
@@ -94,6 +95,8 @@ const theme = createTheme({
           textTransform: 'none',
           border: `2.5px solid ${INK} !important`,
           color: INK,
+          backgroundColor: PAPER,
+          '&:hover': { backgroundColor: TINT },
           '&.Mui-selected': {
             backgroundColor: CORAL,
             color: PAPER,
@@ -114,8 +117,10 @@ const initialConfig = {
   // demo-only: one Eye, or two of them through EyePair
   eyeCount: 1,
   // EyePair props, in play once there are two eyes
-  gap: 20, eyeRotation: 0, pairRotation: 0,
-  oddEye: false, rightIrisColor: '#F2A03D',
+  gap: 20, eyeRotation: 0,
+  // the two per-eye overrides the demo can show off: an odd iris colour, and a
+  // right eye that keeps its own gaze while the pair looks around
+  oddEye: false, rightIrisColor: '#F2A03D', oddGaze: false,
   scleraWidth: 70, scleraHeight: 50, scleraColor: '#FFFFFF',
   eyeOutlineThickness: 0, eyeOutlineColor: '#000000',
   irisWidth: 80, irisHeight: 80, irisColor: '#3E7BFA',
@@ -149,9 +154,15 @@ const upperHex = (color) => {
 
 const randomNumber = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 
+const clampAxis = (value) => Math.max(-100, Math.min(100, Math.round(value)));
+
 // how many eye widths a pair spans, gap included: the stage box and each eye's
 // share of it are both measured against this
 const pairSpan = (gap) => 2 + Math.max(0, gap) / 100;
+
+// the gaze the odd-eye override pins the right eye to: hard right, so it reads
+// at a glance against a pair that is looking anywhere else
+const ODD_GAZE = [100, 0];
 
 const presets = {
   Default: initialConfig,
@@ -276,8 +287,8 @@ const presets = {
 
 // each preset's default display size (per eye), chosen so its sclera fits the
 // fixed-height stage: taller scleras get a smaller box, keeping the drawn eye
-// roughly the same visual size (sclera height ≈ 340px on desktop). A pair is
-// sized so the two eyes and their gap fit the stage side by side
+// roughly the same visual size. A pair is sized so the two eyes and their gap
+// fit the stage side by side
 const presetDisplaySize = {
   Default: 680, Googly: 300, Owl: 260, Snake: 490, Zombie: 520, Cat: 520,
   Sleepy: 750, Surprised: 410, Alien: 390, Frog: 430,
@@ -287,7 +298,7 @@ const defaultEyeSize = presetDisplaySize.Default;
 
 // the Eye and EyePair defaults, used to emit only non-default props
 const eyeDefaults = {
-  gap: 20, eyeRotation: 0, pairRotation: 0,
+  gap: 20, eyeRotation: 0,
   scleraWidth: 100, scleraHeight: 100, scleraColor: '#FFFFFF',
   eyeOutlineThickness: 0, eyeOutlineColor: '#000000',
   irisSize: 60, irisColor: '#666666',
@@ -304,9 +315,9 @@ const eyeDefaults = {
 // width/height (and lid) pairs into their shorthand props; raw values
 // (number | [x, y] | { prop: value } | color string | true), shared by the JSX
 // snippet and the share URL. `lensPosition` defaults to the config's resting
-// position, but the snippet passes the live one so the code follows a wandering
-// eye. With two eyes the pair's own props come first and the right eye's
-// override last, the way they read best in the snippet
+// position, but the snippet passes the live one so the code follows a
+// cursor-following eye. With two eyes the pair's own props come first and the
+// right eye's override last, the way they read best in the snippet
 function diffEyeProps(config, lensPosition = config.lensPosition) {
   const props = [];
   const add = (name, value) => props.push({ name, value });
@@ -315,7 +326,6 @@ function diffEyeProps(config, lensPosition = config.lensPosition) {
   if (pair) {
     if (config.gap !== eyeDefaults.gap) add('gap', config.gap);
     if (config.eyeRotation !== eyeDefaults.eyeRotation) add('eyeRotation', config.eyeRotation);
-    if (config.pairRotation !== eyeDefaults.pairRotation) add('pairRotation', config.pairRotation);
   }
 
   if (config.scleraWidth !== eyeDefaults.scleraWidth) add('scleraWidth', config.scleraWidth);
@@ -408,22 +418,40 @@ function diffEyeProps(config, lensPosition = config.lensPosition) {
     if (config.blinkSqueeze) add('blinkSqueeze', true);
   }
 
-  // the per-eye override goes last: everything above it is what both eyes share
-  if (pair && config.oddEye) add('rightEye', { irisColor: config.rightIrisColor });
+  // the per-eye override goes last: everything above it is what both eyes share.
+  // Naming lensPosition there is what takes that eye off the pair's shared gaze
+  if (pair) {
+    const rightEye = {};
+    if (config.oddEye) rightEye.irisColor = config.rightIrisColor;
+    if (config.oddGaze) rightEye.lensPosition = ODD_GAZE;
+    if (Object.keys(rightEye).length > 0) add('rightEye', rightEye);
+  }
   return props;
 }
 
+// a prop value as it is written in JSX
+const jsxValue = (value) => (
+  Array.isArray(value) ? `[${value.join(', ')}]`
+    : typeof value === 'number' ? String(value)
+      : typeof value === 'object' ? `{ ${Object.entries(value)
+        .map(([key, own]) => `${key}: ${jsxValue(own)}`).join(', ')} }`
+        : `'${upperHex(value)}'`
+);
+
 function buildCodeProps(config, lensPosition) {
-  const props = diffEyeProps(config, lensPosition).map(({ name, value }) => ({
-    name,
-    value: value === true ? null // bare boolean prop
-      : Array.isArray(value) ? `{[${value.join(', ')}]}`
-        : typeof value === 'object' ? `{{ ${Object.entries(value)
-          .map(([key, own]) => `${key}: '${upperHex(own)}'`).join(', ')} }}`
+  // a wandering eye is driven by lensMovement, which ignores lensPosition: the
+  // snippet asks for the wander rather than the spot the eye happens to be at
+  const wandering = config.movement === 'wander';
+  const props = diffEyeProps(config, lensPosition)
+    .filter(({ name }) => !(wandering && name === 'lensPosition'))
+    .map(({ name, value }) => ({
+      name,
+      value: value === true ? null // bare boolean prop
+        : (Array.isArray(value) || typeof value === 'object') ? `{${jsxValue(value)}}`
           : typeof value === 'number' ? `{${value}}`
             : `'${upperHex(value)}'`,
-  }));
-  if (config.movement === 'wander') props.push({ name: 'lensMovement', value: null });
+    }));
+  if (wandering) props.push({ name: 'lensMovement', value: null });
   return props;
 }
 
@@ -435,9 +463,10 @@ function buildCodeProps(config, lensPosition) {
 function buildShareParams(config, eyeSize) {
   const params = new URLSearchParams();
   for (const { name, value } of diffEyeProps(config)) {
-    // the right eye's override travels as the one property the demo can set
+    // the right eye's override travels as the two properties the demo can set
     if (name === 'rightEye') {
-      params.set('rightIrisColor', value.irisColor.replace(/^#/, ''));
+      if (value.irisColor) params.set('rightIrisColor', value.irisColor.replace(/^#/, ''));
+      if (value.lensPosition) params.set('rightGaze', '1');
       continue;
     }
     params.set(name, value === true ? '1'
@@ -452,15 +481,16 @@ function buildShareParams(config, eyeSize) {
 }
 
 // inverse of buildShareParams: expand shorthand params over the component
-// defaults; malformed values are ignored so hand-edited URLs degrade gracefully.
+// defaults; malformed values are ignored so hand-edited URLs degrade gracefully,
+// as do parameters from older versions (`pairRotation`, which no longer exists).
 // Returns null when the URL carries no recognised config at all.
 function parseShareParams(search) {
   const params = new URLSearchParams(search);
   const config = {
     ...initialConfig, // key order matters: preset matching compares JSON strings
     eyeCount: 1,
-    gap: eyeDefaults.gap, eyeRotation: eyeDefaults.eyeRotation, pairRotation: eyeDefaults.pairRotation,
-    oddEye: false, rightIrisColor: initialConfig.rightIrisColor,
+    gap: eyeDefaults.gap, eyeRotation: eyeDefaults.eyeRotation,
+    oddEye: false, rightIrisColor: initialConfig.rightIrisColor, oddGaze: false,
     scleraWidth: eyeDefaults.scleraWidth, scleraHeight: eyeDefaults.scleraHeight, scleraColor: eyeDefaults.scleraColor,
     eyeOutlineThickness: eyeDefaults.eyeOutlineThickness, eyeOutlineColor: eyeDefaults.eyeOutlineColor,
     irisWidth: eyeDefaults.irisSize, irisHeight: eyeDefaults.irisSize, irisColor: eyeDefaults.irisColor,
@@ -504,9 +534,10 @@ function parseShareParams(search) {
   }
   num('gap', 0, 100, (v) => { config.gap = v; });
   num('eyeRotation', -60, 60, (v) => { config.eyeRotation = v; });
-  num('pairRotation', -180, 180, (v) => { config.pairRotation = v; });
-  // the demo's single left/right override: an odd-coloured right iris
+  // the demo's two left/right overrides: an odd-coloured right iris, and a right
+  // eye that keeps its own gaze
   color('rightIrisColor', (v) => { config.oddEye = true; config.rightIrisColor = v; });
+  flag('rightGaze', (v) => { config.oddGaze = v; });
 
   num('scleraWidth', 0, 100, (v) => { config.scleraWidth = v; });
   num('scleraHeight', 0, 100, (v) => { config.scleraHeight = v; });
@@ -551,13 +582,13 @@ function parseShareParams(search) {
   // the Eye itself takes any angle, but the demo's slider is a single turn
   num('rotation', -180, 180, (v) => { config.rotation = v; });
 
-  // "x,y", each clamped to the axis sliders' range; a malformed half is dropped
+  // "x,y", each clamped to the axis range; a malformed half is dropped
   const axisPair = (name, apply) => {
     if (!params.has(name)) return;
     const [x, y] = params.get(name).split(',').map(Number);
     if (!Number.isFinite(x) || !Number.isFinite(y)) return;
     found = true;
-    apply([x, y].map((v) => Math.min(100, Math.max(-100, v))));
+    apply([x, y].map(clampAxis));
   };
   axisPair('lensPosition', (v) => { config.lensPosition = v; });
   axisPair('catchlightPosition', (v) => { config.catchlightPosition = v; });
@@ -586,9 +617,9 @@ function parseShareSize(search) {
 // Small building blocks
 // ---------------------------------------------------------------------------
 
-// a bipolar control (rotation, the two eye-position axes) reads as a deflection
-// from its origin, not as an amount filled from the left end; MUI lays the track
-// out inline, so the override has to be !important to win
+// a bipolar control (rotation, the outward tilt) reads as a deflection from its
+// origin, not as an amount filled from the left end; MUI lays the track out
+// inline, so the override has to be !important to win
 const originTrackSx = (value, min, max, origin) => ({
   '& .MuiSlider-track': {
     left: `${((Math.min(value, origin) - min) / (max - min)) * 100}% !important`,
@@ -618,47 +649,102 @@ const ControlSlider = ({
   </Box>
 );
 
-// one axis of the eye position: the two ends are named rather than numbered, and
-// the readout sits between them so the pair reads as a little crosshair
-const AxisSlider = ({ label, startLabel, endLabel, value, onChange, disabled = false, smooth = false }) => (
-  <Box>
-    {/* 1fr auto 1fr keeps the readout dead centre over the slider's zero notch,
-        whatever the two end labels are called */}
-    <Box sx={{
-      display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'baseline',
-      color: disabled ? 'text.disabled' : 'text.secondary',
-    }}>
-      <Typography variant='caption' sx={{ fontWeight: 700 }}>{startLabel}</Typography>
-      <Typography variant='caption' sx={{
-        fontFamily: "'Fira Code', monospace", px: 1,
-        color: disabled ? 'text.disabled' : 'text.primary',
-      }}>
-        {Math.round(value)}
-      </Typography>
-      <Typography variant='caption' sx={{ fontWeight: 700, textAlign: 'right' }}>{endLabel}</Typography>
-    </Box>
-    {/* the animated modes keep driving the sliders while they are disabled, so a
-        greyed-out thumb still shows where the eye is looking; a wandering eye
-        takes 600ms to reach its new target, so the thumb glides with it rather
-        than snapping ahead */}
-    <Slider size='small' value={Math.round(value)} min={-100} max={100} disabled={disabled}
-      marks={[{ value: 0 }]}
-      onChange={(e, v) => onChange(v)} aria-label={label}
+// the gaze and the glint are both a point inside a box, so they get a box to put
+// it in rather than two sliders to convert in your head: drag (or nudge with the
+// arrow keys, ten at a time with shift) to set both axes at once. While a
+// movement mode drives the eye the pad is read-only but still live, so the dot
+// keeps showing where the eye is looking
+const XYPad = ({ label, value, onChange, disabled = false, smooth = false, size = 156 }) => {
+  const boxRef = useRef(null);
+  const [x, y] = value.map(Math.round);
+
+  const pointAt = (event) => {
+    const box = boxRef.current?.getBoundingClientRect();
+    if (!box?.width || !box?.height) return;
+    onChange([
+      clampAxis(((event.clientX - box.left) / box.width) * 200 - 100),
+      clampAxis(((event.clientY - box.top) / box.height) * 200 - 100),
+    ]);
+  };
+  const onPointerDown = (event) => {
+    if (disabled) return;
+    event.preventDefault();
+    event.currentTarget.focus();
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    pointAt(event);
+  };
+  const onPointerMove = (event) => {
+    if (disabled || !event.currentTarget.hasPointerCapture?.(event.pointerId)) return;
+    pointAt(event);
+  };
+  const onKeyDown = (event) => {
+    const step = event.shiftKey ? 10 : 1;
+    const nudge = {
+      ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step],
+    }[event.key];
+    if (disabled || !nudge) return;
+    event.preventDefault();
+    onChange([clampAxis(x + nudge[0]), clampAxis(y + nudge[1])]);
+  };
+
+  // the same easing and duration as the lens itself, so the dot travels with it
+  const glide = smooth ? 'left 500ms cubic-bezier(0.22, 1, 0.36, 1), top 500ms cubic-bezier(0.22, 1, 0.36, 1)' : 'none';
+  return (
+    <Box ref={boxRef} role='group' aria-label={`${label}: ${x}, ${y}`} aria-disabled={disabled || undefined}
+      tabIndex={disabled ? -1 : 0}
+      onPointerDown={onPointerDown} onPointerMove={onPointerMove} onKeyDown={onKeyDown}
       sx={{
-        ...originTrackSx(Math.round(value), -100, 100, 0),
-        '&.Mui-disabled': {
-          '& .MuiSlider-thumb': {
-            color: PAPER, borderColor: INK, opacity: 0.6,
-            transition: smooth ? 'left 600ms cubic-bezier(0.22, 1, 0.36, 1)' : 'none',
-          },
-          '& .MuiSlider-track': {
-            opacity: 0.5,
-            transition: smooth ? 'left 600ms cubic-bezier(0.22, 1, 0.36, 1), width 600ms cubic-bezier(0.22, 1, 0.36, 1)' : 'none',
-          },
-        },
+        position: 'relative', flex: '0 0 auto',
+        width: '100%', maxWidth: size, aspectRatio: '1',
+        borderRadius: 3, border: `2.5px solid ${INK}`, bgcolor: PAPER,
+        boxShadow: `3px 3px 0 ${INK}`,
+        backgroundImage: 'radial-gradient(rgba(41,34,58,0.14) 1.5px, transparent 1.5px)',
+        backgroundSize: '13px 13px',
+        backgroundPosition: 'center',
+        touchAction: 'none', cursor: disabled ? 'default' : 'crosshair',
+        opacity: disabled ? 0.6 : 1,
+        '&:focus-visible': { outline: `3px solid ${CORAL}`, outlineOffset: 3 },
+      }}>
+      {/* the centre notch, so "straight ahead" is somewhere you can aim for */}
+      <Box sx={{ position: 'absolute', left: 8, right: 8, top: '50%', borderTop: `1.5px dashed rgba(41,34,58,0.28)` }} />
+      <Box sx={{ position: 'absolute', top: 8, bottom: 8, left: '50%', borderLeft: `1.5px dashed rgba(41,34,58,0.28)` }} />
+      <Box sx={{
+        position: 'absolute', width: 18, height: 18, borderRadius: '50%',
+        bgcolor: CORAL, border: `2.5px solid ${INK}`,
+        left: `${(x + 100) / 2}%`, top: `${(y + 100) / 2}%`,
+        transform: 'translate(-50%, -50%)',
+        transition: glide,
       }} />
-  </Box>
-);
+    </Box>
+  );
+};
+
+// a pad with its name and its two numbers above it, and room beside it for
+// whatever the panel wants to say about it
+const PadControl = ({ label, value, onChange, disabled = false, smooth = false, note = null }) => {
+  const [x, y] = value.map(Math.round);
+  return (
+    <Box>
+      <Stack direction='row' sx={{ justifyContent: 'space-between', alignItems: 'baseline', mb: 1 }}>
+        <Typography variant='body2' sx={{ fontWeight: 700, color: disabled ? 'text.disabled' : 'text.primary' }}>
+          {label}
+        </Typography>
+        <Typography variant='body2'
+          sx={{ fontFamily: "'Fira Code', monospace", color: disabled ? 'text.disabled' : 'text.secondary' }}>
+          [{x}, {y}]
+        </Typography>
+      </Stack>
+      <Stack direction='row' spacing={2} sx={{ alignItems: 'flex-start' }}>
+        <XYPad label={label} value={value} onChange={onChange} disabled={disabled} smooth={smooth} />
+        {note ? (
+          <Typography variant='caption' sx={{ color: 'text.secondary', flex: '1 1 0', minWidth: 0 }}>
+            {note}
+          </Typography>
+        ) : null}
+      </Stack>
+    </Box>
+  );
+};
 
 const ColorControl = ({ label, value, onChange, sx, disabled = false, alpha = false }) => (
   <Box sx={sx}>
@@ -690,42 +776,35 @@ const SwitchControl = ({ label, checked, onChange, disabled = false }) => (
   </Stack>
 );
 
-// the settings are grouped into collapsible sections so the growing API stays
-// navigable and the stage beside them keeps its share of the screen
-const Section = ({ title, subtitle, defaultOpen = false, children, sx }) => {
-  const [open, setOpen] = useState(defaultOpen);
-  return (
-    <Paper className='pop-in' sx={{ overflow: 'hidden', ...sx }}>
-      <Box component='button' type='button' aria-expanded={open} onClick={() => setOpen((v) => !v)}
-        sx={{
-          width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          gap: 1, px: 2.5, py: 1.75, cursor: 'pointer', textAlign: 'left',
-          font: 'inherit', color: 'inherit', border: 0, background: 'none',
-          '&:hover': { backgroundColor: '#FFF3DE' },
-        }}>
-        <Typography variant='h6'>{title}</Typography>
-        <Stack direction='row' spacing={1} sx={{ alignItems: 'center' }}>
-          {subtitle && !open ? (
-            <Typography variant='caption' sx={{ color: 'text.secondary', fontWeight: 700 }}>{subtitle}</Typography>
-          ) : null}
-          <ExpandMoreIcon sx={{
-            display: 'block',
-            transform: open ? 'rotate(180deg)' : 'none',
-            transition: 'transform 200ms ease',
-          }} />
-        </Stack>
-      </Box>
-      <Collapse in={open}>
-        <Box sx={{ px: 2.5, pb: 2.5 }}>{children}</Box>
-      </Collapse>
-    </Paper>
-  );
-};
+// one named block of settings inside a tab: a rule and a small caps title, so a
+// panel reads as two or three short lists rather than one run of sliders
+const ControlGroup = ({ title, children, note = null, first = false }) => (
+  <Box component='section' sx={{ pt: first ? 0 : 2.5 }}>
+    <Typography variant='overline' component='h3' sx={{
+      display: 'block', mb: 1, fontSize: 12, color: 'text.secondary',
+    }}>
+      {title}
+    </Typography>
+    <Stack spacing={1.25}>{children}</Stack>
+    {note ? (
+      <Typography variant='caption' sx={{ display: 'block', mt: 1.5, color: 'text.secondary' }}>
+        {note}
+      </Typography>
+    ) : null}
+  </Box>
+);
 
-const CopyButton = ({ getText, label = 'Copy', color = 'primary' }) => {
+// the colour fields pair up wherever there is room for two
+const ColorRow = ({ children }) => (
+  <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: 'repeat(auto-fit, minmax(136px, 1fr))' }}>
+    {children}
+  </Box>
+);
+
+const CopyButton = ({ getText, label = 'Copy', color = 'primary', variant = 'contained' }) => {
   const [copied, setCopied] = useState(false);
   return (
-    <Button size='small' variant='contained' disableElevation color={color}
+    <Button size='small' variant={variant} disableElevation color={color}
       onClick={() => {
         navigator.clipboard.writeText(getText());
         setCopied(true);
@@ -771,18 +850,26 @@ const eyeProps = (config, lensPosition) => ({
   lensPosition,
 });
 
+// the right eye's override, exactly as the snippet writes it
+const rightEyeOverride = (config) => {
+  const override = {};
+  if (config.oddEye) override.irisColor = config.rightIrisColor;
+  if (config.oddGaze) override.lensPosition = ODD_GAZE;
+  return Object.keys(override).length > 0 ? override : undefined;
+};
+
 // the stage and the preset previews draw the same thing: one Eye, or the real
 // EyePair when the config asks for two. The demo drives the movement itself (so
-// the sliders can track it), which is why lensMovement stays off here. Each eye
+// the pad can track it), which is why lensMovement stays off here. Each eye
 // takes its share of the box, so a pair always fits the width it is given
-const StageEyes = ({ config, lensPosition, lensSpeed = 600 }) => {
+const StageEyes = ({ config, lensPosition, lensSpeed = 500 }) => {
   const shared = { ...eyeProps(config, lensPosition), lensMovement: false, lensSpeed };
   if (config.eyeCount !== 2) return <Eye {...shared} width='100%' height='100%' />;
   return (
     <EyePair {...shared}
       width={`${(100 / pairSpan(config.gap)).toFixed(3)}%`} height='100%'
-      gap={config.gap} eyeRotation={config.eyeRotation} pairRotation={config.pairRotation}
-      rightEye={config.oddEye ? { irisColor: config.rightIrisColor } : undefined}
+      gap={config.gap} eyeRotation={config.eyeRotation}
+      rightEye={rightEyeOverride(config)}
       style={{ display: 'flex', width: '100%', height: '100%', justifyContent: 'center' }} />
   );
 };
@@ -802,6 +889,43 @@ const eyeBoxSx = (config, eyeSize, xsEyeBox) => {
   };
 };
 
+// the settings are split into tabs rather than stacked into one long column: the
+// stage stays in sight, and each group is a screenful at most on any device
+const TABS = [
+  { id: 'shape', label: 'Shape' },
+  { id: 'iris', label: 'Iris' },
+  { id: 'shine', label: 'Shine' },
+  { id: 'lids', label: 'Lids' },
+  { id: 'motion', label: 'Motion' },
+  { id: 'pair', label: 'Pair' },
+];
+
+const TabButton = ({ tab, active, onClick, badge }) => (
+  <Box component='button' type='button' role='tab' id={`tab-${tab.id}`}
+    aria-selected={active} aria-controls={`panel-${tab.id}`} tabIndex={active ? 0 : -1}
+    onClick={onClick}
+    sx={{
+      font: 'inherit', fontFamily: "'Fredoka', sans-serif", fontWeight: 500, fontSize: 15,
+      display: 'inline-flex', alignItems: 'center', gap: 0.75,
+      px: 1.75, py: 0.6, cursor: 'pointer', borderRadius: 999,
+      border: `2.5px solid ${INK}`,
+      backgroundColor: active ? CORAL : PAPER,
+      color: active ? PAPER : INK,
+      boxShadow: active ? `2px 2px 0 ${INK}` : 'none',
+      transition: 'background-color 120ms ease, box-shadow 120ms ease, transform 120ms ease',
+      '&:hover': { backgroundColor: active ? CORAL : TINT },
+      '&:active': { transform: 'translate(1px, 1px)' },
+    }}>
+    {tab.label}
+    {badge ? (
+      <Box component='span' sx={{
+        width: 7, height: 7, borderRadius: '50%',
+        backgroundColor: active ? PAPER : TEAL,
+      }} />
+    ) : null}
+  </Box>
+);
+
 // ---------------------------------------------------------------------------
 // App
 // ---------------------------------------------------------------------------
@@ -813,6 +937,7 @@ function App() {
     () => parseShareSize(window.location.search) ?? defaultEyeSize);
   // the stage crops tall eyes by default; expanding it reveals the whole drawing area
   const [stageExpanded, setStageExpanded] = useState(false);
+  const [tab, setTab] = useState('shape');
   const pairMode = config.eyeCount === 2;
 
   // shareable URL for the current config; the address bar follows it (debounced)
@@ -833,7 +958,7 @@ function App() {
     return () => clearTimeout(timeoutId);
   }, [config, eyeSize, shareUrl]);
 
-  // wander: one shared random target, so the stage and the sliders agree on
+  // wander: one shared random target, so the stage and the gaze pad agree on
   // where the eyes are looking (EyePair does the same for its own two eyes)
   const [wanderLens, setWanderLens] = useState([0, 0]);
   useEffect(() => {
@@ -879,30 +1004,21 @@ function App() {
   }, [config.movement]);
 
   // where the lens actually is right now: driven by the active movement mode, or
-  // by the eye-position sliders when the eye is still
+  // by the gaze pad when the eye is still
   const lensPosition =
     config.movement === 'follow' ? followLens :
     config.movement === 'wander' ? wanderLens : config.lensPosition;
-  const setLensAxis = (axis) => (value) => setConfig((c) => ({
-    ...c,
-    lensPosition: axis === 0 ? [value, c.lensPosition[1]] : [c.lensPosition[0], value],
-  }));
-  const setCatchlightAxis = (axis) => (value) => setConfig((c) => ({
-    ...c,
-    catchlightPosition: axis === 0
-      ? [value, c.catchlightPosition[1]]
-      : [c.catchlightPosition[0], value],
-  }));
-  // both axes need something to place before they mean anything
+  const stillEye = config.movement === 'still';
+  // both catchlight axes need something to place before they mean anything
   const catchlightOn = config.catchlightWidth > 0 && config.catchlightHeight > 0;
+  const eyelinerOn = config.upperEyelinerSize > 0 || config.lowerEyelinerSize > 0;
 
   // on mobile the eye box scales with the viewport (52vw at the 680px default) so
   // the stage keeps the same proportions for every preset size
   const xsEyeBox = `min(${eyeSize}px, ${(eyeSize * 52 / 680).toFixed(1)}vw)`;
 
-  // the snippet tracks the live lens, so a wandering eye writes its own code
+  // the snippet tracks the live lens, so a cursor-following eye writes its own code
   const [lensX, lensY] = lensPosition;
-  const stillEye = config.movement === 'still';
   const codeProps = useMemo(
     () => buildCodeProps(config, [lensX, lensY]),
     [config, lensX, lensY]);
@@ -915,6 +1031,15 @@ function App() {
   const activePreset = Object.keys(presets).find(
     (name) => JSON.stringify(presets[name]) === JSON.stringify(config)
   );
+
+  // a dot on a tab marks a feature that is switched on inside it, so the
+  // optional parts of the API are visible without opening every panel
+  const badges = {
+    shape: config.eyeOutlineThickness > 0,
+    shine: catchlightOn,
+    lids: eyelinerOn,
+    pair: pairMode,
+  };
 
   return (
     <ThemeProvider theme={theme}>
@@ -939,14 +1064,14 @@ function App() {
         {/* header */}
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}
           className='pop-in'
-          sx={{ mb: { xs: 3, md: 4 }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' } }}>
+          sx={{ mb: { xs: 2.5, md: 4 }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' } }}>
           <Box>
             <Typography variant='h1' sx={{ fontSize: { xs: '2.2rem', md: '3rem' }, lineHeight: 1.1 }}>
               cartoon-eyes
               <Box component='span' sx={{ color: CORAL }}>.</Box>
             </Typography>
             <Typography color='text.secondary' sx={{ mt: 0.5, fontWeight: 600 }}>
-              A tiny React component for expressive, blinking SVG eyes. Try "Follow cursor" and they'll watch you.
+              A tiny React component for expressive, blinking SVG eyes. Set them to Follow and they'll watch your cursor.
             </Typography>
           </Box>
           <Stack direction='row' spacing={1.5} sx={{ alignItems: 'center' }}>
@@ -964,363 +1089,366 @@ function App() {
           </Stack>
         </Stack>
 
-        {/* the stage keeps its place while the settings beside (or below) it
-            scroll: two columns from md up, and a pinned band on a phone */}
+        {/* the workspace: the eye on one side, the settings on the other, so
+            nothing has to scroll out of sight to be changed. On a phone the two
+            stack and the stage pins itself to the top of the screen instead */}
         <Box sx={{
           display: { xs: 'block', md: 'grid' },
-          gridTemplateColumns: { md: 'minmax(0, 6fr) minmax(0, 5fr)' },
-          gridTemplateAreas: { md: '"presets presets" "stage settings"' },
-          alignItems: 'start',
-          columnGap: 3, rowGap: 3,
+          gridTemplateColumns: { md: 'minmax(0, 1.05fr) minmax(0, 1fr)' },
+          alignItems: 'start', columnGap: 3,
         }}>
 
-          {/* stage */}
-          <Box sx={{
-            gridArea: { md: 'stage' },
-            position: 'sticky', top: { xs: 0, md: 16 }, zIndex: 3,
-            // on a phone the stage pins to the top of the viewport as a band
-            // that spans the whole width, carrying the page's own dots so the
-            // settings slide out of sight cleanly underneath it
-            mx: { xs: -2, sm: -3, md: 0 },
-            px: { xs: 2, sm: 3, md: 0 },
-            py: { xs: 1.5, md: 0 },
-            mb: { xs: 2, md: 0 },
-            backgroundColor: { xs: CREAM, md: 'transparent' },
-            backgroundImage: { xs: DOTS, md: 'none' },
-            backgroundSize: '22px 22px',
-            backgroundAttachment: 'fixed',
-          }}>
-            <Paper className='pop-in' sx={{
-              position: 'relative',
-              p: 0, overflow: 'hidden', bgcolor: '#FFE8CF',
-              backgroundImage: `radial-gradient(rgba(41,34,58,0.12) 2px, transparent 2px)`,
-              backgroundSize: '18px 18px',
+          {/* left: the stage, what it is showing, and the presets. On a phone the
+              column dissolves (display: contents) so the pinned stage is a child
+              of the workspace itself and stays put while the settings below it
+              scroll; from md up it is a real column the stage can stick inside */}
+          <Box sx={{ display: { xs: 'contents', md: 'block' }, alignSelf: 'stretch' }}>
+            <Box sx={{
+              position: 'sticky', top: { xs: 0, md: 16 }, zIndex: 3,
+              // on a phone the stage pins to the top of the viewport as a band
+              // that spans the whole width, carrying the page's own dots so the
+              // settings slide out of sight cleanly underneath it
+              mx: { xs: -2, sm: -3, md: 0 },
+              px: { xs: 2, sm: 3, md: 0 },
+              py: { xs: 1.5, md: 0 },
+              backgroundColor: { xs: CREAM, md: 'transparent' },
+              backgroundImage: { xs: DOTS, md: 'none' },
+              backgroundSize: '22px 22px',
+              backgroundAttachment: 'fixed',
             }}>
-              <Tooltip title={stageExpanded ? 'Shrink the stage' : 'Expand the stage'} placement='left'>
-                <IconButton size='small' aria-pressed={stageExpanded}
-                  aria-label={stageExpanded ? 'Shrink the stage' : 'Expand the stage'}
-                  onClick={() => setStageExpanded((v) => !v)}
-                  sx={{
-                    position: 'absolute', top: 12, right: 12, zIndex: 1,
-                    bgcolor: PAPER, color: INK, borderRadius: 2,
-                    border: `2.5px solid ${INK}`, boxShadow: `3px 3px 0 ${INK}`,
-                    transition: 'transform 120ms ease, box-shadow 120ms ease',
-                    '&:hover': {
-                      bgcolor: '#FFF3DE', boxShadow: `4px 4px 0 ${INK}`,
-                      transform: 'translate(-1px, -1px)',
-                    },
-                    '&:active': { boxShadow: `1px 1px 0 ${INK}`, transform: 'translate(2px, 2px)' },
-                  }}>
-                  {stageExpanded ? <FullscreenExitIcon fontSize='small' /> : <FullscreenIcon fontSize='small' />}
-                </IconButton>
-              </Tooltip>
-              <Box ref={eyesRef} sx={{
-                display: 'flex', justifyContent: 'center', alignItems: 'center',
-                // collapsed: a fixed height tall enough for the default-size eye,
-                // with larger sizes bleeding past the edges (cropped by overflow
-                // hidden). expanded: the whole eye box, plus breathing room, and
-                // never taller than the screen it has to stay pinned to
-                height: stageExpanded
-                  ? {
-                    xs: `min(max(28vw, calc(${xsEyeBox} + 24px)), 42vh)`,
-                    md: `min(${Math.max(360, eyeSize + 72)}px, calc(100vh - 96px))`,
-                  }
-                  : { xs: '28vw', md: 360 },
-                transition: 'height 350ms cubic-bezier(0.4, 0, 0.2, 1)',
-                overflow: 'hidden',
+              <Paper className='pop-in' sx={{
+                position: 'relative',
+                p: 0, overflow: 'hidden', bgcolor: '#FFE8CF',
+                backgroundImage: 'radial-gradient(rgba(41,34,58,0.12) 2px, transparent 2px)',
+                backgroundSize: '18px 18px',
               }}>
-                <Box sx={eyeBoxSx(config, eyeSize, xsEyeBox)}>
-                  <StageEyes config={config} lensPosition={lensPosition}
-                    // in follow mode the rAF loop already eases, so the CSS
-                    // transition would only lag behind it
-                    lensSpeed={config.movement === 'follow' ? 0 : 600} />
-                </Box>
-              </Box>
-            </Paper>
-          </Box>
-
-          {/* presets: a grid rather than a wrapping row, so the last few never
-              stretch across the width on their own */}
-          <Box className='pop-in' sx={{
-            gridArea: { md: 'presets' }, mb: { xs: 2, md: 0 }, animationDelay: '80ms',
-            display: 'grid', gap: 1.5,
-            gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-          }}>
-            {Object.entries(presets).map(([name, presetConfig]) => (
-              <Button key={name} variant='contained' disableElevation
-                onClick={() => { setConfig(presetConfig); setEyeSize(presetDisplaySize[name]); }}
-                sx={{
-                  bgcolor: activePreset === name ? CORAL : PAPER,
-                  color: activePreset === name ? PAPER : INK,
-                  '&:hover': { bgcolor: activePreset === name ? CORAL : '#FFF3DE' },
-                  display: 'flex', gap: 1, alignItems: 'center', justifyContent: 'center',
-                  flexGrow: 1,
+                <Tooltip title={stageExpanded ? 'Shrink the stage' : 'Expand the stage'} placement='left'>
+                  <IconButton size='small' aria-pressed={stageExpanded}
+                    aria-label={stageExpanded ? 'Shrink the stage' : 'Expand the stage'}
+                    onClick={() => setStageExpanded((v) => !v)}
+                    sx={{
+                      position: 'absolute', top: 12, right: 12, zIndex: 1,
+                      bgcolor: PAPER, color: INK, borderRadius: 2,
+                      border: `2.5px solid ${INK}`, boxShadow: `3px 3px 0 ${INK}`,
+                      transition: 'transform 120ms ease, box-shadow 120ms ease',
+                      '&:hover': {
+                        bgcolor: TINT, boxShadow: `4px 4px 0 ${INK}`,
+                        transform: 'translate(-1px, -1px)',
+                      },
+                      '&:active': { boxShadow: `1px 1px 0 ${INK}`, transform: 'translate(2px, 2px)' },
+                    }}>
+                    {stageExpanded ? <FullscreenExitIcon fontSize='small' /> : <FullscreenIcon fontSize='small' />}
+                  </IconButton>
+                </Tooltip>
+                <Box ref={eyesRef} sx={{
+                  display: 'flex', justifyContent: 'center', alignItems: 'center',
+                  // collapsed: a fixed height tall enough for the default-size eye,
+                  // with larger sizes bleeding past the edges (cropped by overflow
+                  // hidden). expanded: the whole eye box, plus breathing room, and
+                  // never so tall that the column stops fitting the screen it is
+                  // pinned to
+                  height: stageExpanded
+                    ? {
+                      xs: `min(max(34vw, calc(${xsEyeBox} + 24px)), 42vh)`,
+                      md: `min(${Math.max(360, eyeSize + 72)}px, calc(100vh - 260px))`,
+                    }
+                    : { xs: 'min(34vw, 190px)', md: 360 },
+                  transition: 'height 350ms cubic-bezier(0.4, 0, 0.2, 1)',
+                  overflow: 'hidden',
                 }}>
-                <Box sx={{
-                  width: 34, display: 'flex', alignItems: 'center', flexShrink: 0,
-                  aspectRatio: presetConfig.eyeCount === 2 ? String(pairSpan(presetConfig.gap)) : '1',
-                }}>
-                  <StageEyes config={{ ...presetConfig, blinking: false, movement: 'still' }}
-                    lensPosition={[0, 0]} lensSpeed={0} />
-                </Box>
-                {name}
-              </Button>
-            ))}
-          </Box>
-
-          {/* settings */}
-          <Stack spacing={2} sx={{ gridArea: { md: 'settings' } }}>
-
-            <Section title='Eyes' defaultOpen subtitle={pairMode ? 'a pair' : 'one eye'}
-              sx={{ animationDelay: '140ms' }}>
-              <Stack spacing={2}>
-                <ToggleButtonGroup exclusive fullWidth size='small' value={config.eyeCount}
-                  onChange={(e, v) => v && set('eyeCount')(v)}>
-                  <ToggleButton value={1}>One eye</ToggleButton>
-                  <ToggleButton value={2}>A pair</ToggleButton>
-                </ToggleButtonGroup>
-                <ControlSlider label='Display size' value={eyeSize} onChange={setEyeSize}
-                  min={140} max={900} step={10} unit=' px' />
-                {/* the EyePair-only controls appear with the second eye */}
-                <Collapse in={pairMode}>
-                  <Stack spacing={1.5} sx={{ pt: 0.5 }}>
-                    {/* the gap is a share of one eye, so the pair keeps its
-                        proportions at any display size */}
-                    <ControlSlider label='Gap' value={config.gap} onChange={set('gap')}
-                      min={0} max={100} unit='%' disabled={!pairMode} />
-                    {/* positive tilts both eyes outwards, mirrored */}
-                    <ControlSlider label='Outward eye rotation' value={config.eyeRotation}
-                      onChange={set('eyeRotation')} min={-60} max={60} unit='°' origin={0}
-                      marks={[{ value: 0 }]} disabled={!pairMode} />
-                    <ControlSlider label='Pair rotation' value={config.pairRotation}
-                      onChange={set('pairRotation')} min={-180} max={180} unit='°' origin={0}
-                      marks={[-180, -90, 0, 90, 180].map((value) => ({ value }))} disabled={!pairMode} />
-                    {/* one per-eye override, to show what leftEye / rightEye do */}
-                    <SwitchControl label='Odd right eye' checked={config.oddEye}
-                      onChange={set('oddEye')} disabled={!pairMode} />
-                    <ColorControl label='Right iris' value={config.rightIrisColor}
-                      onChange={set('rightIrisColor')} disabled={!pairMode || !config.oddEye} />
-                  </Stack>
-                </Collapse>
-              </Stack>
-            </Section>
-
-            <Section title='Shape' defaultOpen sx={{ animationDelay: '180ms' }}>
-              <Stack spacing={1}>
-                <ControlSlider label='Sclera width' value={config.scleraWidth} onChange={set('scleraWidth')} />
-                <ControlSlider label='Sclera height' value={config.scleraHeight} onChange={set('scleraHeight')} />
-                <ControlSlider label='Iris width' value={config.irisWidth} onChange={set('irisWidth')} />
-                <ControlSlider label='Iris height' value={config.irisHeight} onChange={set('irisHeight')} />
-                <ControlSlider label='Pupil width' value={config.pupilWidth} onChange={set('pupilWidth')} />
-                <ControlSlider label='Pupil height' value={config.pupilHeight} onChange={set('pupilHeight')} />
-                {/* the track grows out of upright, with a mark every quarter turn */}
-                <ControlSlider label='Rotation' value={config.rotation} onChange={set('rotation')}
-                  min={-180} max={180} unit='°' origin={0}
-                  marks={[-180, -90, 0, 90, 180].map((value) => ({ value }))} />
-              </Stack>
-            </Section>
-
-            <Section title='Colours' defaultOpen sx={{ animationDelay: '220ms' }}>
-              {/* two columns wherever the swatch fields still fit */}
-              <Box sx={{
-                display: 'grid', gap: 2,
-                gridTemplateColumns: 'repeat(auto-fit, minmax(132px, 1fr))',
-              }}>
-                <ColorControl label='Sclera' value={config.scleraColor} onChange={set('scleraColor')}
-                  sx={{ gridColumn: '1 / -1' }} />
-                <ColorControl label='Iris' value={config.irisColor} onChange={set('irisColor')} />
-                <ColorControl label='Pupil' value={config.pupilColor} onChange={set('pupilColor')} />
-              </Box>
-            </Section>
-
-            <Section title='Movement' defaultOpen sx={{ animationDelay: '260ms' }}>
-              <Box>
-                <ToggleButtonGroup exclusive fullWidth size='small' value={config.movement}
-                  onChange={(e, v) => v && set('movement')(v)}>
-                  <ToggleButton value='wander'>Wander</ToggleButton>
-                  <ToggleButton value='follow'>Follow cursor</ToggleButton>
-                  <ToggleButton value='still'>Still</ToggleButton>
-                </ToggleButtonGroup>
-                {/* the position belongs to the movement mode above it, so the two
-                    sit in one block with only a hairline of space between them */}
-                <Stack direction='row' sx={{ mt: 1.5, mb: 0.5, justifyContent: 'space-between', alignItems: 'baseline' }}>
-                  <Typography variant='body2'
-                    sx={{ fontWeight: 700, color: stillEye ? 'text.primary' : 'text.disabled' }}>
-                    Eye position
-                  </Typography>
-                  {!stillEye && (
-                    <Typography variant='caption' sx={{ color: 'text.disabled', fontWeight: 600 }}>
-                      {config.movement === 'wander' ? 'wandering' : 'following'}
-                    </Typography>
-                  )}
-                </Stack>
-                {/* the two axes sit side by side, so the pair reads as one
-                    crosshair; a cramped card drops them back onto two rows */}
-                <Box sx={{
-                  // 24px of column gap clears the two thumbs, each of which
-                  // overhangs its track by half a thumb at the extremes
-                  display: 'grid', columnGap: 3, rowGap: 0.5,
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(128px, 1fr))',
-                }}>
-                  <AxisSlider label='Eye position, horizontal' startLabel='Left' endLabel='Right'
-                    value={lensX} onChange={setLensAxis(0)}
-                    disabled={!stillEye} smooth={config.movement === 'wander'} />
-                  <AxisSlider label='Eye position, vertical' startLabel='Up' endLabel='Down'
-                    value={lensY} onChange={setLensAxis(1)}
-                    disabled={!stillEye} smooth={config.movement === 'wander'} />
-                </Box>
-                {pairMode && (
-                  <Typography variant='caption' sx={{ display: 'block', mt: 1.5, color: 'text.secondary' }}>
-                    Both eyes look the same way: a pair looking right looks right.
-                  </Typography>
-                )}
-              </Box>
-            </Section>
-
-            <Section title='Blinking' subtitle={config.blinking ? 'on' : 'off'}
-              sx={{ animationDelay: '300ms' }}>
-              <Stack spacing={1.5}>
-                <SwitchControl label='Blinking' checked={config.blinking} onChange={set('blinking')} />
-                <SwitchControl label='Blink squeeze' checked={config.blinkSqueeze} onChange={set('blinkSqueeze')}
-                  disabled={!config.blinking} />
-                <ControlSlider label='Blink speed' value={config.blinkSpeed} onChange={set('blinkSpeed')}
-                  min={30} max={400} step={10} unit=' ms' disabled={!config.blinking} />
-                <ControlSlider label='Blink every' value={config.blinkFrequency} onChange={set('blinkFrequency')}
-                  min={500} max={8000} step={100} unit=' ms' disabled={!config.blinking} />
-                {pairMode && (
-                  <Typography variant='caption' sx={{ color: 'text.secondary' }}>
-                    A pair blinks on one clock, so both lids come down together.
-                  </Typography>
-                )}
-              </Stack>
-            </Section>
-
-            <Section title='Eyelids & eyeliner' sx={{ animationDelay: '340ms' }}>
-              <Stack spacing={1}>
-                <ControlSlider label='Upper eyelid' value={config.upperLidSize} onChange={set('upperLidSize')} />
-                <ControlSlider label='Lower eyelid' value={config.lowerLidSize} onChange={set('lowerLidSize')} />
-                {/* the liner belongs to the lid margins, so it rides the blink */}
-                <ControlSlider label='Upper eyeliner' value={config.upperEyelinerSize}
-                  onChange={set('upperEyelinerSize')} />
-                <ControlSlider label='Lower eyeliner' value={config.lowerEyelinerSize}
-                  onChange={set('lowerEyelinerSize')} />
-                <Box sx={{
-                  display: 'grid', gap: 2, pt: 1,
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(132px, 1fr))',
-                }}>
-                  <ColorControl label='Upper eyelid' value={config.upperLidColor}
-                    onChange={set('upperLidColor')} />
-                  <ColorControl label='Lower eyelid' value={config.lowerLidColor}
-                    onChange={set('lowerLidColor')} />
-                  <ColorControl label='Upper eyeliner' value={config.upperEyelinerColor}
-                    onChange={set('upperEyelinerColor')} disabled={config.upperEyelinerSize === 0} />
-                  <ColorControl label='Lower eyeliner' value={config.lowerEyelinerColor}
-                    onChange={set('lowerEyelinerColor')} disabled={config.lowerEyelinerSize === 0} />
-                </Box>
-              </Stack>
-            </Section>
-
-            <Section title='Limbus & catchlight' sx={{ animationDelay: '380ms' }}>
-              <Stack spacing={1}>
-                {/* the ring is taken out of the iris, so it is a share of the
-                    iris radius rather than something added around it */}
-                <ControlSlider label='Limbus' value={config.limbusThickness} onChange={set('limbusThickness')} />
-                <ColorControl label='Limbus colour' value={config.limbusColor} onChange={set('limbusColor')}
-                  disabled={config.limbusThickness === 0} sx={{ pt: 1, pb: 1 }} />
-                {/* the glint measures against the whole iris, limbus and all, so
-                    a limbus never resizes or shifts it */}
-                <ControlSlider label='Catchlight width' value={config.catchlightWidth}
-                  onChange={set('catchlightWidth')} />
-                <ControlSlider label='Catchlight height' value={config.catchlightHeight}
-                  onChange={set('catchlightHeight')} />
-                <Box>
-                  <Typography variant='body2' sx={{
-                    mt: 1, mb: 0.5, fontWeight: 700,
-                    color: catchlightOn ? 'text.primary' : 'text.disabled',
-                  }}>
-                    Catchlight position
-                  </Typography>
-                  {/* placed inside the iris the way the eye is placed inside the
-                      sclera, so it gets the same pair of centre-notched axes */}
-                  <Box sx={{
-                    display: 'grid', columnGap: 3, rowGap: 0.5,
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(128px, 1fr))',
-                  }}>
-                    <AxisSlider label='Catchlight position, horizontal' startLabel='Left' endLabel='Right'
-                      value={config.catchlightPosition[0]} onChange={setCatchlightAxis(0)}
-                      disabled={!catchlightOn} />
-                    <AxisSlider label='Catchlight position, vertical' startLabel='Up' endLabel='Down'
-                      value={config.catchlightPosition[1]} onChange={setCatchlightAxis(1)}
-                      disabled={!catchlightOn} />
+                  <Box sx={eyeBoxSx(config, eyeSize, xsEyeBox)}>
+                    <StageEyes config={config} lensPosition={lensPosition}
+                      // in follow mode the rAF loop already eases, so the CSS
+                      // transition would only lag behind it
+                      lensSpeed={config.movement === 'follow' ? 0 : 500} />
                   </Box>
                 </Box>
-                {/* a glint is usually a touch transparent, so this one field
-                    carries an alpha channel */}
-                <ColorControl label='Catchlight colour' value={config.catchlightColor} alpha
-                  onChange={set('catchlightColor')} disabled={!catchlightOn} sx={{ pt: 1 }} />
-              </Stack>
-            </Section>
+              </Paper>
+            </Box>
 
-            <Section title='Eye outline' sx={{ animationDelay: '420ms' }}>
-              <Stack spacing={1}>
-                {/* like the limbus, the ring is taken out of the sclera rather
-                    than added around it, so the eye never outgrows the drawing area */}
-                <ControlSlider label='Thickness' value={config.eyeOutlineThickness}
-                  onChange={set('eyeOutlineThickness')} />
-                <ColorControl label='Colour' value={config.eyeOutlineColor} onChange={set('eyeOutlineColor')}
-                  disabled={config.eyeOutlineThickness === 0} sx={{ pt: 1 }} />
-              </Stack>
-            </Section>
-
-            {/* generated code */}
-            <Paper className='pop-in' sx={{ p: 2.5, bgcolor: INK, color: CREAM, animationDelay: '460ms' }}>
-              <Stack direction='row' sx={{
-                mb: 1.5, gap: 1, justifyContent: 'space-between',
-                alignItems: 'center', flexWrap: 'wrap',
-              }}>
-                <Typography variant='h6' sx={{ color: CREAM }}>Your eye, as code</Typography>
-                <Stack direction='row' spacing={1}>
-                  <CopyButton getText={() => shareUrl} label='Copy link' color='secondary' />
-                  <CopyButton getText={() => codeText} label='Copy JSX' />
+            {/* what the stage is showing: one eye or two, how they move, how big
+                they are drawn. Everything else is a property of the eye itself
+                and lives in the settings panel */}
+            <Paper className='pop-in' sx={{ mt: 2, p: 2, animationDelay: '80ms' }}>
+              <Stack spacing={2}>
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+                  <ToggleButtonGroup exclusive fullWidth size='small' value={config.eyeCount}
+                    aria-label='How many eyes'
+                    onChange={(e, v) => v && set('eyeCount')(v)}>
+                    <ToggleButton value={1}>One eye</ToggleButton>
+                    <ToggleButton value={2}>A pair</ToggleButton>
+                  </ToggleButtonGroup>
+                  <ToggleButtonGroup exclusive fullWidth size='small' value={config.movement}
+                    aria-label='Movement'
+                    onChange={(e, v) => v && set('movement')(v)}>
+                    <ToggleButton value='wander'>Wander</ToggleButton>
+                    <ToggleButton value='follow'>Follow</ToggleButton>
+                    <ToggleButton value='still'>Still</ToggleButton>
+                  </ToggleButtonGroup>
                 </Stack>
+                <ControlSlider label='Display size' value={eyeSize} onChange={setEyeSize}
+                  min={140} max={900} step={10} unit=' px' />
               </Stack>
-              <Box component='pre' sx={{
-                m: 0, p: 2, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.06)',
-                fontFamily: "'Fira Code', monospace", fontSize: 13.5, lineHeight: 1.7,
-                overflowX: 'auto',
-              }}>
-                <code>
-                  <Box component='span' sx={{ color: '#9D8CFF' }}>import</Box>
-                  {` { ${componentName} } `}
-                  <Box component='span' sx={{ color: '#9D8CFF' }}>from</Box>
-                  <Box component='span' sx={{ color: '#FFD166' }}>{" 'cartoon-eyes'"}</Box>
-                  {';\n\n'}
-                  <Box component='span' sx={{ color: '#7FD8D8' }}>{`<${componentName}`}</Box>
-                  {'\n'}
-                  {codeProps.map((p) => (
-                    <React.Fragment key={p.name}>
-                      {'  '}
-                      <Box component='span' sx={{ color: '#FFA07A' }}>{p.name}</Box>
-                      {p.value !== null && (
-                        <>
-                          {'='}
-                          <Box component='span' sx={{
-                            color: p.value.startsWith("'") ? '#FFD166' : '#B5E48C',
-                          }}>{p.value}</Box>
-                        </>
-                      )}
-                      {'\n'}
-                    </React.Fragment>
-                  ))}
-                  <Box component='span' sx={{ color: '#7FD8D8' }}>{'/>'}</Box>
-                </code>
-              </Box>
             </Paper>
-          </Stack>
+
+            {/* presets: a rail that wraps on a wide screen and scrolls sideways
+                on a narrow one, so it never pushes the settings off the page */}
+            <Box className='pop-in' sx={{ mt: 2.5, mb: { xs: 2.5, md: 0 }, animationDelay: '120ms' }}>
+              <Typography variant='overline' component='h2'
+                sx={{ display: 'block', mb: 1, fontSize: 12, color: 'text.secondary' }}>
+                Presets
+              </Typography>
+              <Box sx={{
+                display: 'flex', gap: 1.25,
+                flexWrap: { xs: 'nowrap', md: 'wrap' },
+                overflowX: { xs: 'auto', md: 'visible' },
+                // the offset shadows need room inside the scroller not to be clipped
+                p: 0.5, m: -0.5,
+                scrollSnapType: { xs: 'x proximity', md: 'none' },
+              }}>
+                {Object.entries(presets).map(([name, presetConfig]) => (
+                  <Button key={name} variant='contained' disableElevation size='small'
+                    onClick={() => { setConfig(presetConfig); setEyeSize(presetDisplaySize[name]); }}
+                    sx={{
+                      flex: '0 0 auto', scrollSnapAlign: 'start',
+                      bgcolor: activePreset === name ? CORAL : PAPER,
+                      color: activePreset === name ? PAPER : INK,
+                      '&:hover': { bgcolor: activePreset === name ? CORAL : TINT },
+                      display: 'flex', gap: 0.75, alignItems: 'center', pl: 1, pr: 1.5, py: 0.75,
+                    }}>
+                    <Box sx={{
+                      width: 26, display: 'flex', alignItems: 'center', flexShrink: 0,
+                      aspectRatio: presetConfig.eyeCount === 2 ? String(pairSpan(presetConfig.gap)) : '1',
+                    }}>
+                      <StageEyes config={{ ...presetConfig, blinking: false, movement: 'still' }}
+                        lensPosition={[0, 0]} lensSpeed={0} />
+                    </Box>
+                    {name}
+                  </Button>
+                ))}
+              </Box>
+            </Box>
+          </Box>
+
+          {/* right: the settings, one group at a time */}
+          <Paper className='pop-in' sx={{ overflow: 'hidden', animationDelay: '160ms' }}>
+            <Box role='tablist' aria-label='Eye settings' sx={{
+              display: 'flex', flexWrap: 'wrap', gap: 1, p: 1.5,
+              bgcolor: TINT, borderBottom: `3px solid ${INK}`,
+            }}>
+              {TABS.map((entry) => (
+                <TabButton key={entry.id} tab={entry} active={tab === entry.id}
+                  badge={badges[entry.id]} onClick={() => setTab(entry.id)} />
+              ))}
+            </Box>
+
+            <Box role='tabpanel' id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}
+              sx={{ p: 2.5, minHeight: { md: 430 } }}>
+
+              {tab === 'shape' && (
+                <>
+                  <ControlGroup title='Sclera' first>
+                    <ControlSlider label='Width' value={config.scleraWidth} onChange={set('scleraWidth')} unit='%' />
+                    <ControlSlider label='Height' value={config.scleraHeight} onChange={set('scleraHeight')} unit='%' />
+                    <ColorControl label='Colour' value={config.scleraColor} onChange={set('scleraColor')} />
+                  </ControlGroup>
+                  <ControlGroup title='Tilt'
+                    note='The whole eye turns, lids and all. Only the catchlight stays put, the way a reflection would.'>
+                    <ControlSlider label='Rotation' value={config.rotation} onChange={set('rotation')}
+                      min={-180} max={180} unit='°' origin={0}
+                      marks={[-180, -90, 0, 90, 180].map((value) => ({ value }))} />
+                  </ControlGroup>
+                  <ControlGroup title='Outline'
+                    note='Taken out of the sclera rather than added around it, so the eye never outgrows its box.'>
+                    <ControlSlider label='Thickness' value={config.eyeOutlineThickness}
+                      onChange={set('eyeOutlineThickness')} unit='%' />
+                    <ColorControl label='Colour' value={config.eyeOutlineColor} onChange={set('eyeOutlineColor')}
+                      disabled={config.eyeOutlineThickness === 0} />
+                  </ControlGroup>
+                </>
+              )}
+
+              {tab === 'iris' && (
+                <>
+                  <ControlGroup title='Iris' first>
+                    <ControlSlider label='Width' value={config.irisWidth} onChange={set('irisWidth')} unit='%' />
+                    <ControlSlider label='Height' value={config.irisHeight} onChange={set('irisHeight')} unit='%' />
+                    <ColorControl label='Colour' value={config.irisColor} onChange={set('irisColor')} />
+                  </ControlGroup>
+                  <ControlGroup title='Limbus'
+                    note='The darker rim, taken out of the outer edge of the iris: the iris keeps its size and the pupil stays put.'>
+                    <ControlSlider label='Thickness' value={config.limbusThickness}
+                      onChange={set('limbusThickness')} unit='%' />
+                    <ColorControl label='Colour' value={config.limbusColor} onChange={set('limbusColor')}
+                      disabled={config.limbusThickness === 0} />
+                  </ControlGroup>
+                  <ControlGroup title='Pupil'
+                    note='A narrow width with a tall height gives the slit of a cat or a snake.'>
+                    <ControlSlider label='Width' value={config.pupilWidth} onChange={set('pupilWidth')} unit='%' />
+                    <ControlSlider label='Height' value={config.pupilHeight} onChange={set('pupilHeight')} unit='%' />
+                    <ColorControl label='Colour' value={config.pupilColor} onChange={set('pupilColor')} />
+                  </ControlGroup>
+                </>
+              )}
+
+              {tab === 'shine' && (
+                <>
+                  <ControlGroup title='Catchlight' first
+                    note='Sized against the whole iris, limbus included, and drawn over the pupil as well, so it can cross the edge of either.'>
+                    <ControlSlider label='Width' value={config.catchlightWidth}
+                      onChange={set('catchlightWidth')} unit='%' />
+                    <ControlSlider label='Height' value={config.catchlightHeight}
+                      onChange={set('catchlightHeight')} unit='%' />
+                    {/* a glint is usually a touch transparent, so this one field
+                        carries an alpha channel */}
+                    <ColorControl label='Colour' value={config.catchlightColor} alpha
+                      onChange={set('catchlightColor')} disabled={!catchlightOn} />
+                  </ControlGroup>
+                  <ControlGroup title='Position'>
+                    <PadControl label='Catchlight position' value={config.catchlightPosition}
+                      onChange={set('catchlightPosition')} disabled={!catchlightOn}
+                      note={"The glint travels with the eye's gaze but keeps to the screen's own axes: tilt the eye on the Shape tab and watch it hold its place, the way a reflection of a fixed light does."} />
+                  </ControlGroup>
+                </>
+              )}
+
+              {tab === 'lids' && (
+                <>
+                  <ControlGroup title='Eyelids' first>
+                    <ControlSlider label='Upper' value={config.upperLidSize} onChange={set('upperLidSize')} unit='%' />
+                    <ControlSlider label='Lower' value={config.lowerLidSize} onChange={set('lowerLidSize')} unit='%' />
+                    <ColorRow>
+                      <ColorControl label='Upper colour' value={config.upperLidColor}
+                        onChange={set('upperLidColor')} />
+                      <ColorControl label='Lower colour' value={config.lowerLidColor}
+                        onChange={set('lowerLidColor')} />
+                    </ColorRow>
+                  </ControlGroup>
+                  <ControlGroup title='Eyeliner'
+                    note='The liner belongs to the lid margins, so it rides up and down with every blink.'>
+                    <ControlSlider label='Upper' value={config.upperEyelinerSize}
+                      onChange={set('upperEyelinerSize')} unit='%' />
+                    <ControlSlider label='Lower' value={config.lowerEyelinerSize}
+                      onChange={set('lowerEyelinerSize')} unit='%' />
+                    <ColorRow>
+                      <ColorControl label='Upper colour' value={config.upperEyelinerColor}
+                        onChange={set('upperEyelinerColor')} disabled={config.upperEyelinerSize === 0} />
+                      <ColorControl label='Lower colour' value={config.lowerEyelinerColor}
+                        onChange={set('lowerEyelinerColor')} disabled={config.lowerEyelinerSize === 0} />
+                    </ColorRow>
+                  </ControlGroup>
+                </>
+              )}
+
+              {tab === 'motion' && (
+                <>
+                  <ControlGroup title='Gaze' first
+                    note={pairMode ? 'A pair shares one gaze: it is not mirrored, so a pair looking right looks right.' : null}>
+                    <PadControl label='Eye position' value={lensPosition} onChange={set('lensPosition')}
+                      disabled={!stillEye} smooth={config.movement === 'wander'}
+                      note={stillEye
+                        ? 'Drag to aim the eye, or nudge it with the arrow keys. This is lensPosition: -100 to 100 on each axis.'
+                        : `The eye is ${config.movement === 'wander' ? 'wandering on its own' : 'following your cursor'}, so the pad only reports where it is looking. Switch to Still above to aim it by hand.`} />
+                  </ControlGroup>
+                  <ControlGroup title='Blinking'
+                    note={pairMode ? 'A pair blinks on one clock, so both lids come down together.' : null}>
+                    <SwitchControl label='Blinking' checked={config.blinking} onChange={set('blinking')} />
+                    <SwitchControl label='Blink squeeze' checked={config.blinkSqueeze}
+                      onChange={set('blinkSqueeze')} disabled={!config.blinking} />
+                    <ControlSlider label='Blink speed' value={config.blinkSpeed} onChange={set('blinkSpeed')}
+                      min={30} max={400} step={10} unit=' ms' disabled={!config.blinking} />
+                    <ControlSlider label='Blink every' value={config.blinkFrequency}
+                      onChange={set('blinkFrequency')}
+                      min={500} max={8000} step={100} unit=' ms' disabled={!config.blinking} />
+                  </ControlGroup>
+                </>
+              )}
+
+              {tab === 'pair' && (pairMode ? (
+                <>
+                  <ControlGroup title='Layout' first
+                    note='The gap is a share of one eye, so the pair keeps its proportions at any size. A positive tilt splays the two outwards.'>
+                    <ControlSlider label='Gap' value={config.gap} onChange={set('gap')} unit='%' />
+                    <ControlSlider label='Outward tilt' value={config.eyeRotation}
+                      onChange={set('eyeRotation')} min={-60} max={60} unit='°' origin={0}
+                      marks={[{ value: 0 }]} />
+                  </ControlGroup>
+                  <ControlGroup title='Right eye only'
+                    note={"leftEye and rightEye override any shared prop for one eye. Naming lensPosition there takes that eye off the pair's shared gaze: it holds its own look while the other one wanders."}>
+                    <SwitchControl label='Odd right eye' checked={config.oddEye} onChange={set('oddEye')} />
+                    <ColorControl label='Right iris' value={config.rightIrisColor}
+                      onChange={set('rightIrisColor')} disabled={!config.oddEye} />
+                    <SwitchControl label='Right eye looks away' checked={config.oddGaze}
+                      onChange={set('oddGaze')} />
+                  </ControlGroup>
+                </>
+              ) : (
+                <ControlGroup title='Two eyes' first>
+                  <Typography variant='body2' sx={{ color: 'text.secondary' }}>
+                    <Box component='code' sx={{ fontFamily: "'Fira Code', monospace" }}>EyePair</Box>{' '}
+                    draws two eyes as one component: they share a gaze, blink on one clock and
+                    splay outwards together, and either one can be overridden on its own.
+                  </Typography>
+                  <Box>
+                    <Button variant='contained' disableElevation onClick={() => set('eyeCount')(2)}>
+                      Show a pair
+                    </Button>
+                  </Box>
+                </ControlGroup>
+              ))}
+            </Box>
+          </Paper>
         </Box>
 
+        {/* generated code: what the stage above is, as something to paste */}
+        <Paper className='pop-in' sx={{
+          mt: { xs: 2.5, md: 3 }, p: 2.5, bgcolor: INK, color: CREAM, animationDelay: '200ms',
+        }}>
+          <Stack direction='row' sx={{
+            mb: 1.5, gap: 1, justifyContent: 'space-between',
+            alignItems: 'center', flexWrap: 'wrap',
+          }}>
+            <Typography variant='h6' sx={{ color: CREAM }}>Your eye, as code</Typography>
+            <Stack direction='row' spacing={1}>
+              <CopyButton getText={() => shareUrl} label='Copy link' color='secondary' />
+              <CopyButton getText={() => codeText} label='Copy JSX' />
+            </Stack>
+          </Stack>
+          <Box component='pre' sx={{
+            m: 0, p: 2, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.06)',
+            fontFamily: "'Fira Code', monospace", fontSize: 13.5, lineHeight: 1.7,
+            overflowX: 'auto',
+          }}>
+            <code>
+              <Box component='span' sx={{ color: '#9D8CFF' }}>import</Box>
+              {` { ${componentName} } `}
+              <Box component='span' sx={{ color: '#9D8CFF' }}>from</Box>
+              <Box component='span' sx={{ color: '#FFD166' }}>{" 'cartoon-eyes'"}</Box>
+              {';\n\n'}
+              <Box component='span' sx={{ color: '#7FD8D8' }}>{`<${componentName}`}</Box>
+              {'\n'}
+              {codeProps.map((p) => (
+                <React.Fragment key={p.name}>
+                  {'  '}
+                  <Box component='span' sx={{ color: '#FFA07A' }}>{p.name}</Box>
+                  {p.value !== null && (
+                    <>
+                      {'='}
+                      <Box component='span' sx={{
+                        color: p.value.startsWith("'") ? '#FFD166' : '#B5E48C',
+                      }}>{p.value}</Box>
+                    </>
+                  )}
+                  {'\n'}
+                </React.Fragment>
+              ))}
+              <Box component='span' sx={{ color: '#7FD8D8' }}>{'/>'}</Box>
+            </code>
+          </Box>
+        </Paper>
+
         {/* about */}
-        <Box component='section' className='pop-in' sx={{ mt: 6, animationDelay: '560ms' }}>
+        <Box component='section' className='pop-in' sx={{ mt: 6, animationDelay: '240ms' }}>
           <Stack direction='row' spacing={1.5} sx={{ alignItems: 'center', mb: 2.5 }}>
             <Box sx={{ width: 40, height: 40, flexShrink: 0 }}>
               <Eye width='100%' height='100%' scleraWidth={92} scleraHeight={72}

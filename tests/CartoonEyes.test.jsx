@@ -154,7 +154,150 @@ describe('Eye catchlight', () => {
     const { container } = render(<Eye size={100} catchlightSize={20} />);
     const lensGroup = container.querySelector('.lens > g');
     const drawn = [...lensGroup.children].map((el) => el.getAttribute('class'));
-    expect(drawn).toEqual(['iris', 'pupil', 'catchlight']);
+    expect(drawn).toEqual(['iris', 'pupil', 'catchlight-frame']);
+    // the frame is only there to hold the eye's rotation off the glint, so it
+    // stays inside the lens and travels with it
+    expect(container.querySelector('.catchlight-frame > .catchlight')).not.toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The transforms a renderer would compose for the catchlight: the eye's own
+// rotation about the centre of the drawing area, the lens travel inside it, the
+// frame that takes the rotation back off the glint, and the glint's own place
+// inside the iris. Composing them here lets a test ask where the glint actually
+// lands on the screen instead of trusting any one transform on its own
+// ---------------------------------------------------------------------------
+
+const affine = {
+  // [a, b, c, d, e, f], as in the SVG matrix()
+  mul: (m, n) => [
+    m[0] * n[0] + m[2] * n[1], m[1] * n[0] + m[3] * n[1],
+    m[0] * n[2] + m[2] * n[3], m[1] * n[2] + m[3] * n[3],
+    m[0] * n[4] + m[2] * n[5] + m[4], m[1] * n[4] + m[3] * n[5] + m[5],
+  ],
+  translate: (x, y) => [1, 0, 0, 1, x, y],
+  rotate: (degrees, cx, cy) => {
+    const radians = degrees * Math.PI / 180;
+    const cos = Math.cos(radians);
+    const sin = Math.sin(radians);
+    return [cos, sin, -sin, cos, cx - cos * cx + sin * cy, cy - sin * cx - cos * cy];
+  },
+  apply: (m, [x, y]) => [m[0] * x + m[2] * y + m[4], m[1] * x + m[3] * y + m[5]],
+};
+
+const degreesOf = (transform) => Number(/rotate\((-?[\d.]+)deg\)/.exec(transform)[1]);
+const offsetOf = (transform) => /translate\((-?[\d.]+)(?:px)?,\s*(-?[\d.]+)(?:px)?\)/
+  .exec(transform).slice(1, 3).map(Number);
+
+// where the glint ends up, and where the iris it belongs to ended up with it
+const glintOnScreen = (eye) => {
+  const toLens = affine.mul(
+    affine.rotate(degreesOf(eye.querySelector('.eye-rotation').style.transform), 50, 50),
+    affine.translate(...offsetOf(eye.querySelector('.lens > g').style.transform)));
+  const matrix = affine.mul(affine.mul(
+    toLens,
+    affine.rotate(degreesOf(eye.querySelector('.catchlight-frame').style.transform), 50, 50)),
+    affine.translate(...offsetOf(eye.querySelector('.catchlight').getAttribute('transform'))));
+  const centre = affine.apply(matrix, [0, 0]);
+  const iris = affine.apply(toLens, [50, 50]);
+  return {
+    centre,
+    // how the glint sits against the iris it lights: this is what has to hold
+    // still on the screen's axes however far the eye turns
+    offset: [centre[0] - iris[0], centre[1] - iris[1]],
+    // the shape's own orientation and scale: [1, 0, 0, 1] is screen-aligned
+    shape: matrix.slice(0, 4),
+  };
+};
+
+describe('Eye catchlight under rotation', () => {
+  const glintOf = (props) => {
+    const { container } = render(
+      <Eye size={100} irisSize={60} catchlightSize={20} catchlightPosition={[-50, -60]} {...props} />
+    );
+    return glintOnScreen(container.querySelector('svg.cartoon-eye'));
+  };
+
+  const expectSameGlint = (turned, upright) => {
+    expect(turned.offset[0]).toBeCloseTo(upright.offset[0], 6);
+    expect(turned.offset[1]).toBeCloseTo(upright.offset[1], 6);
+    [1, 0, 0, 1].forEach((identity, i) => expect(turned.shape[i]).toBeCloseTo(identity, 6));
+  };
+
+  it('takes the eye rotation back off the glint, around the centre of the lens', () => {
+    const { container } = render(<Eye size={100} catchlightSize={20} rotation={-45} />);
+    const frame = container.querySelector('.catchlight-frame');
+    expect(frame.style.transform).toBe('rotate(45deg)');
+    // around the lens centre, not the glint's own: turning it on the spot would
+    // leave its position orbiting the iris as the eye tilts
+    expect(frame.style.transformOrigin).toBe('center');
+  });
+
+  it('holds the glint on the global axes at any angle, either way', () => {
+    const upright = glintOf({});
+    [-180, -90, -37, 12, 60, 145, 540].forEach((rotation) => {
+      expectSameGlint(glintOf({ rotation }), upright);
+    });
+  });
+
+  it('still travels with the lens while the eye is turned', () => {
+    const still = glintOf({ lensPosition: [0, 0] });
+    const looking = glintOf({ lensPosition: [80, -60] });
+    // the glint follows the iris ...
+    expect(looking.centre).not.toEqual(still.centre);
+    // ... keeping the same place on it, upright or turned
+    expectSameGlint(looking, still);
+    expectSameGlint(glintOf({ lensPosition: [80, -60], rotation: 65 }), still);
+    expectSameGlint(glintOf({ lensPosition: [-100, 100], rotation: -65 }), still);
+  });
+
+  it('keeps an elliptical glint upright as the eye turns', () => {
+    const flat = { irisWidth: 80, irisHeight: 40, catchlightWidth: 25, catchlightHeight: 50 };
+    const upright = glintOf({ ...flat, rotation: 0 });
+    const turned = glintOf({ ...flat, rotation: 70 });
+    expectSameGlint(turned, upright);
+    // the drawn ellipse is the same one either way: only the eye under it turned
+    const radii = (rotation) => {
+      const { container } = render(<Eye size={100} {...flat} rotation={rotation} />);
+      const glint = container.querySelector('.catchlight');
+      return [glint.getAttribute('rx'), glint.getAttribute('ry')];
+    };
+    expect(radii(70)).toEqual(radii(0));
+  });
+
+  it('measures against the full outer iris however far the eye turns', () => {
+    // the limbus is taken out of the iris, so it moves and sizes nothing here
+    expectSameGlint(glintOf({ rotation: 33, limbusThickness: 45 }), glintOf({}));
+  });
+
+  it('animates the counter-rotation on the eye rotation own timing', () => {
+    const { container } = render(
+      <Eye size={100} catchlightSize={20} rotation={120} rotationSpeed={400} />
+    );
+    // same duration and easing, so the two cancel out at every frame of a spin
+    expect(container.querySelector('.catchlight-frame').style.transition)
+      .toBe(container.querySelector('.eye-rotation').style.transition);
+    expect(container.querySelector('.catchlight-frame').style.transition).toContain('400ms');
+  });
+
+  it('holds both glints of a pair on the same global axes', () => {
+    const { container } = render(
+      <EyePair size={100} irisSize={60} catchlightSize={20} catchlightPosition={[-50, -60]}
+        rotation={10} eyeRotation={25} />
+    );
+    const [left, right] = [...container.querySelectorAll('svg.cartoon-eye')].map(glintOnScreen);
+    // the eyes are splayed apart (-15 and 35 degrees), and neither glint moved
+    // with them: both sit up and to the left, as one light source would leave them
+    expect([...container.querySelectorAll('.eye-rotation')].map((g) => g.style.transform))
+      .toEqual(['rotate(-15deg)', 'rotate(35deg)']);
+    expect(right.offset[0]).toBeCloseTo(left.offset[0], 6);
+    expect(right.offset[1]).toBeCloseTo(left.offset[1], 6);
+    expect(left.offset[0]).toBeLessThan(0);
+    expect(left.offset[1]).toBeLessThan(0);
+    [left, right].forEach((glint) => {
+      [1, 0, 0, 1].forEach((identity, i) => expect(glint.shape[i]).toBeCloseTo(identity, 6));
+    });
   });
 });
 
@@ -362,10 +505,10 @@ describe('EyePair', () => {
 
   it('keeps its own props off the eyes', () => {
     const { container } = render(
-      <EyePair size={100} gap={30} eyeRotation={10} pairRotation={5}
+      <EyePair size={100} gap={30} eyeRotation={10}
         leftEye={{ irisColor: '#111111' }} rightEye={{ irisColor: '#222222' }} title='A pair of eyes' />
     );
-    ['gap', 'eyeRotation', 'eyerotation', 'pairRotation', 'pairrotation', 'leftEye', 'lefteye', 'rightEye', 'righteye']
+    ['gap', 'eyeRotation', 'eyerotation', 'leftEye', 'lefteye', 'rightEye', 'righteye']
       .forEach((attribute) => {
         expect(container.querySelector(`svg[${attribute}]`)).toBeNull();
       });
@@ -403,17 +546,18 @@ describe('EyePair', () => {
       .toEqual(['rotate(90deg)', 'rotate(10deg)']);
   });
 
-  it('turns the whole pair with pairRotation, leaving the eyes upright', () => {
-    const { container } = render(<EyePair size={100} pairRotation={-15} rotationSpeed={400} />);
+  it('has no pairRotation left, and ignores one from an older version', () => {
+    const { container } = render(<EyePair size={100} rotationSpeed={400} pairRotation={-15} />);
+    // the wrapper is plain layout again: only the eyes rotate
     const pair = container.querySelector('.cartoon-eye-pair');
-    expect(pair.style.transform).toBe('rotate(-15deg)');
-    expect(pair.style.transformOrigin).toBe('center');
-    expect(pair.style.transition).toContain('400ms');
+    expect(pair.style.transform).toBe('');
+    expect(pair.style.transition).toBe('');
     [...pairOf(container)].forEach((eye) => {
       expect(eye.querySelector('.eye-rotation').style.transform).toBe('rotate(0deg)');
-      // the eyes still get the shared rotation speed for their own tilts
+      // ... and the obsolete prop reaches neither the eyes nor the markup
       expect(eye.querySelector('.eye-rotation').style.transition).toContain('400ms');
     });
+    expect(container.querySelector('[pairRotation], [pairrotation]')).toBeNull();
   });
 
   it('shares the gaze without mirroring it', () => {
@@ -518,5 +662,98 @@ describe('EyePair', () => {
     pairOf(container).forEach((eye) => {
       expect(eye.classList.contains('mascot')).toBe(false);
     });
+  });
+});
+
+describe('EyePair gaze overrides', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  const lensOf = (container) => [...container.querySelectorAll('svg.cartoon-eye')]
+    .map((eye) => eye.querySelector('.lens > g').style.transform);
+
+  // every wander picks the same corner, so where an eye ends up says whose clock
+  // it is on: the slack is 20 units either way, and 72% of it is 14.4
+  const oneCorner = () => {
+    vi.useFakeTimers();
+    vi.spyOn(Math, 'random').mockReturnValue(0.9); // randomNumber(-90, 90) -> 72
+  };
+
+  it('shares the wander with both eyes when neither overrides its gaze', () => {
+    oneCorner();
+    const { container } = render(<EyePair size={100} irisSize={60} lensMovement />);
+    expect(vi.getTimerCount()).toBe(1); // one wander for the pair
+    act(() => { vi.advanceTimersByTime(1000); });
+    expect(lensOf(container)).toEqual(['translate(14.4px,14.4px)', 'translate(14.4px,14.4px)']);
+  });
+
+  it('fixes an eye that overrides only its position, without setting it wandering', () => {
+    oneCorner();
+    const { container } = render(
+      <EyePair size={100} irisSize={60} lensMovement rightEye={{ lensPosition: [100, 0] }} />
+    );
+    // the shared lensMovement is not inherited by the eye that opted out: the
+    // pair's own wander is the only timer running
+    expect(vi.getTimerCount()).toBe(1);
+    expect(lensOf(container)).toEqual(['translate(0px,0px)', 'translate(20px,0px)']);
+    act(() => { vi.advanceTimersByTime(5000); });
+    // the left eye follows the pair; the right one has not moved at all
+    expect(lensOf(container)).toEqual(['translate(14.4px,14.4px)', 'translate(20px,0px)']);
+  });
+
+  it('gives an eye a wander of its own when the override asks for one', () => {
+    oneCorner();
+    const { container } = render(
+      <EyePair size={100} irisSize={60} lensMovement={2000} rightEye={{ lensMovement: 500 }} />
+    );
+    expect(vi.getTimerCount()).toBe(2); // the pair's, and the right eye's own
+    act(() => { vi.advanceTimersByTime(500); });
+    // the right eye is on its own faster clock, so it moves first
+    expect(lensOf(container)).toEqual(['translate(0px,0px)', 'translate(14.4px,14.4px)']);
+    act(() => { vi.advanceTimersByTime(1500); });
+    expect(lensOf(container)).toEqual(['translate(14.4px,14.4px)', 'translate(14.4px,14.4px)']);
+  });
+
+  it('honours a position and a movement given together as one gaze', () => {
+    oneCorner();
+    const { container } = render(
+      <EyePair size={100} irisSize={60} lensMovement
+        leftEye={{ lensPosition: [-100, -100], lensMovement: 600 }} />
+    );
+    expect(vi.getTimerCount()).toBe(2);
+    // the left eye starts where its override put it, then wanders on its own
+    expect(lensOf(container)).toEqual(['translate(-20px,-20px)', 'translate(0px,0px)']);
+    act(() => { vi.advanceTimersByTime(600); });
+    expect(lensOf(container)[0]).toBe('translate(14.4px,14.4px)');
+  });
+
+  it('lets an eye sit out the wander entirely', () => {
+    oneCorner();
+    const { container } = render(
+      <EyePair size={100} irisSize={60} lensMovement lensPosition={[50, 50]}
+        leftEye={{ lensMovement: false }} />
+    );
+    expect(vi.getTimerCount()).toBe(1);
+    act(() => { vi.advanceTimersByTime(1000); });
+    // the still eye keeps the pair's resting position while the other wanders
+    expect(lensOf(container)).toEqual(['translate(10px,10px)', 'translate(14.4px,14.4px)']);
+  });
+
+  it('reads leftEye and rightEye the same way', () => {
+    oneCorner();
+    const left = render(
+      <EyePair size={100} irisSize={60} lensMovement leftEye={{ lensPosition: [-100, 0] }} />
+    );
+    act(() => { vi.advanceTimersByTime(1000); });
+    expect(lensOf(left.container)).toEqual(['translate(-20px,0px)', 'translate(14.4px,14.4px)']);
+    left.unmount();
+
+    const right = render(
+      <EyePair size={100} irisSize={60} lensMovement rightEye={{ lensPosition: [-100, 0] }} />
+    );
+    act(() => { vi.advanceTimersByTime(1000); });
+    expect(lensOf(right.container)).toEqual(['translate(14.4px,14.4px)', 'translate(-20px,0px)']);
   });
 });

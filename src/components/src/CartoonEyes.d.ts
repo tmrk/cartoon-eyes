@@ -63,15 +63,18 @@ export interface EyeProps {
   /**
    * Sets both catchlight width and height as a percentage (0-100) of the full
    * outer iris, limbus included, so adding a limbus never resizes it. The
-   * catchlight is drawn over the iris and the pupil and travels with the lens.
-   * Default 0 (no catchlight rendered).
+   * catchlight is drawn over the iris and the pupil and travels with the lens,
+   * but it does not turn with `rotation`: it is a reflection of a fixed light,
+   * so both its place and its shape stay on the screen's own axes while the eye
+   * tilts. Default 0 (no catchlight rendered).
    */
   catchlightSize?: number;
   catchlightWidth?: number;
   catchlightHeight?: number;
   /**
    * Position of the catchlight within the iris: `[x, y]`, each from -100 (left/top)
-   * to 100 (right/bottom), measured against the full outer iris. Default `[-40, -40]`.
+   * to 100 (right/bottom), measured against the full outer iris and along the
+   * screen's axes, not the rotated eye's. Default `[-40, -40]`.
    */
   catchlightPosition?: [number, number];
   /**
@@ -120,8 +123,9 @@ export interface EyeProps {
 
   /**
    * Tilt of the whole eye in degrees: negative rotates left (anticlockwise),
-   * positive rotates right (clockwise). Default 0. Not clamped to ±180, so it can
-   * be driven past a full turn to animate a spin.
+   * positive rotates right (clockwise). Everything turns with it except the
+   * catchlight, which stays aligned to the screen. Default 0. Not clamped to
+   * ±180, so it can be driven past a full turn to animate a spin.
    */
   rotation?: number;
   /** Duration of the rotation transition in ms. Default 0 (rotate immediately). */
@@ -162,11 +166,15 @@ export interface EyePairProps extends EyeProps {
    * to any shared `rotation`, which turns both the same way. Default 0.
    */
   eyeRotation?: number;
-  /** Rotation of the whole pair as one unit, in degrees. Default 0. */
-  pairRotation?: number;
-  /** Props for the left eye only; they override the shared ones. */
+  /**
+   * Props for the left eye only; they override the shared ones. Naming a gaze
+   * prop (`lensPosition`, `lensMovement`) or a blink prop (`blinking`,
+   * `blinkSpeed`, `blinkFrequency`, `blinkClosed`) takes this eye off the pair's
+   * shared clock: `{ lensPosition }` alone fixes its gaze there, `{ lensMovement }`
+   * gives it a wander of its own, and the two together do both.
+   */
   leftEye?: EyeProps;
-  /** Props for the right eye only; they override the shared ones. */
+  /** Props for the right eye only; they override the shared ones, as `leftEye` does. */
   rightEye?: EyeProps;
   /** Accessible name for the pair (rendered on the wrapping element). */
   title?: string;

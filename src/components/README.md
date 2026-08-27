@@ -134,9 +134,9 @@ works for every colour prop, so a lid or a sclera can be translucent too.
 | `pupilSize` | number | `50` | Pupil width and height, % of the iris |
 | `pupilWidth`, `pupilHeight` | number | `pupilSize` | Set pupil dimensions separately (e.g. `pupilWidth={14} pupilHeight={90}` for a cat's slit) |
 | `pupilColor` | string | `'#000000'` | Pupil fill colour |
-| `catchlightSize` | number | `0` | Catchlight width and height, % of the full outer iris (limbus included). `0` renders no catchlight |
+| `catchlightSize` | number | `0` | Catchlight width and height, % of the full outer iris (limbus included). It travels with the lens but does not turn with `rotation`. `0` renders no catchlight |
 | `catchlightWidth`, `catchlightHeight` | number | `catchlightSize` | Set catchlight dimensions separately |
-| `catchlightPosition` | `[x, y]` | `[-40, -40]` | Where the glint sits inside the iris; each axis −100 (left/top) to 100 (right/bottom) |
+| `catchlightPosition` | `[x, y]` | `[-40, -40]` | Where the glint sits inside the iris; each axis −100 (left/top) to 100 (right/bottom), measured along the screen's axes rather than the rotated eye's |
 | `catchlightColor` | string | `'#ffffff'` | Catchlight fill colour |
 | `lidSize` | number | `20` | Both eyelid sizes, % of the sclera half-height |
 | `upperLidSize`, `lowerLidSize` | number | `lidSize` | Set eyelid sizes separately |
@@ -149,7 +149,7 @@ works for every colour prop, so a lid or a sclera can be translucent too.
 | `lensPosition` | `[x, y]` | `[0, 0]` | Where the eye looks; each axis −100 (left/top) to 100 (right/bottom) |
 | `lensMovement` | boolean \| number | `false` | Wander randomly; a number sets the interval in ms (default 1000) |
 | `lensSpeed` | number | `500` | Lens movement transition duration, ms |
-| `rotation` | number | `0` | Tilt of the whole eye in degrees: negative rotates left, positive right. Not clamped to ±180, so it can be driven past a full turn |
+| `rotation` | number | `0` | Tilt of the whole eye in degrees: negative rotates left, positive right. Everything turns with it except the catchlight. Not clamped to ±180, so it can be driven past a full turn |
 | `rotationSpeed` | number | `0` | Rotation transition duration, ms (0 rotates immediately) |
 | `blinking` | boolean \| number | `false` | Blink periodically; a number also sets `blinkSpeed` |
 | `blinkSpeed` | number | `80` | How long a blink lasts, ms |
@@ -194,13 +194,24 @@ It keeps the two eyes together where it matters:
 
 An override that names a gaze prop (`lensPosition`, `lensMovement`) or a blink
 prop (`blinking`, `blinkSpeed`, `blinkFrequency`, `blinkClosed`) takes that eye
-off the shared clock, so one eye can wink, or look elsewhere, on its own.
+off the shared clock, so one eye can wink, or look elsewhere, on its own. Nothing
+is inherited from the shared clock it left, so the gaze reads exactly as written:
+
+```jsx
+{/* the left eye wanders with the pair; the right one holds a stare */}
+<EyePair lensMovement rightEye={{ lensPosition: [100, 0] }} />
+
+{/* ... and this right eye wanders on a faster clock of its own */}
+<EyePair lensMovement rightEye={{ lensMovement: 300 }} />
+
+{/* both at once: where it starts, and how it moves from there */}
+<EyePair lensMovement rightEye={{ lensPosition: [100, 0], lensMovement: 300 }} />
+```
 
 | Prop | Type | Default | Description |
 | --- | --- | --- | --- |
 | `gap` | number | `20` | Space between the eyes as a % of one eye's nominal size, so the proportions hold at any size: `0` sets the two drawing areas side by side, `100` leaves a whole eye between them |
 | `eyeRotation` | number | `0` | Mirrored tilt in degrees, positive turning the eyes outwards |
-| `pairRotation` | number | `0` | Rotation of the whole pair as one unit, in degrees |
 | `leftEye`, `rightEye` | `EyeProps` | - | Props for one eye, overriding the shared ones |
 | `size`, `width`, `height` | number \| string | `100` | The nominal size of **one** eye, which `gap` is measured against |
 | `title` | string | - | Accessible name for the pair |
@@ -297,7 +308,8 @@ function SpinningEye() {
 
 A pair looks livelier when the tilts mirror each other, which is what
 `EyePair`'s `eyeRotation` does: `<EyePair eyeRotation={12} />` turns the left eye
-to −12° and the right one to 12°.
+to −12° and the right one to 12°. The catchlight is the one thing that does not
+turn: see below.
 
 ### Cat-style pupils
 
@@ -358,6 +370,22 @@ centres it on the pupil. Give it its own width and height for a drawn-out gleam:
 ```jsx
 <Eye size={100} catchlightWidth={16} catchlightHeight={30} catchlightColor='#8FA8FF' />
 ```
+
+**The catchlight follows the lens, but keeps to the global axes.** It is the
+reflection of a light that stays where it is, so `rotation` turns the eye,
+the lids and the iris under it while the glint holds both its place and its own
+orientation on the screen. An elliptical glint stays upright as the eye tilts,
+and in a pair splayed apart by `eyeRotation` both glints still catch the light
+from the same direction instead of mirroring each other:
+
+```jsx
+{/* both glints stay up and to the left, whichever way each eye is turned */}
+<EyePair size={100} eyeRotation={25} catchlightSize={22} catchlightPosition={[-45, -45]} />
+```
+
+With `rotationSpeed` set, the compensation eases on the same timing as the
+rotation itself, so the glint stays put through the whole turn rather than
+catching up at the end.
 
 ### Eyeliner along the lid margins
 
@@ -465,6 +493,22 @@ rendering and hydration work as expected; animation starts on the client.
 - Modern evergreen browsers
 - Server rendering (e.g. Next.js) works; animations start after hydration
 
+## Changes in v3
+
+- **Changed:** the catchlight no longer rotates with the eye. It still travels
+  with the lens and is still measured against the full outer iris, but its place
+  and its orientation are now fixed to the global (screen) axes, the way the
+  reflection of a fixed light behaves. Animated rotations counter-animate on the
+  same timing, so the glint holds still throughout. Nothing to change in your
+  code; a rotated eye simply looks right.
+- **Fixed:** in `EyePair`, an override naming only `lensPosition` no longer
+  inherits the pair's `lensMovement` and wanders off on its own: it means a fixed
+  gaze for that eye. `{ lensMovement }` on its own gives that eye a wander of its
+  own, and the two together do both.
+- **Removed:** `pairRotation`. Rotate the pair with CSS on the wrapper (or
+  whatever contains it) if you need it; `rotation` and `eyeRotation` are
+  unchanged. An old `pairRotation` prop is ignored rather than throwing.
+
 ## Changes in v2
 
 - **Fixed:** dark `scleraColor` values no longer make the iris and lids fade out
@@ -505,7 +549,7 @@ rendering and hydration work as expected; animation starts on the client.
 
 - **New:** `EyePair`, which composes two `Eye`s and keeps them together: `gap`
   (a share of one eye's nominal size), `eyeRotation` (the mirrored outward tilt),
-  `pairRotation`, and `leftEye` / `rightEye` overrides. The pair shares one gaze
+  and `leftEye` / `rightEye` overrides. The pair shares one gaze
   and one blink clock, so its eyes look the same way and blink at the same time,
   and an override takes one eye off either clock.
 - **New:** `blinkClosed`, a controlled blink for `Eye`: while it is set the eye's

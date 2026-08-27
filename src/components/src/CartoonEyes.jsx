@@ -246,12 +246,24 @@ export const Eye = (props) => {
               <ellipse className='pupil' {...fillOf(pupilColor)} rx={pupilRadiusX} ry={pupilRadiusY}
                 transform='translate(50, 50)' style={pupilStyle} />
               {/* last inside the moving lens: the glint sits over the iris and the
-                  pupil alike, so it may cross the edge of either */}
+                  pupil alike, so it may cross the edge of either. It is a
+                  reflection of a light that does not turn with the eye, so this
+                  frame takes the eye's own rotation back off it, around the
+                  centre of the lens it travels with: the glint keeps both its
+                  place and its shape on the screen's axes however far the eye
+                  tilts, and still follows the lens. Same duration and easing as
+                  the rotation itself, so the two cancel out at every frame */}
               {(catchlightRadiusX > 0 && catchlightRadiusY > 0) ? (
-                <ellipse className='catchlight' {...fillOf(catchlightColor)}
-                  rx={catchlightRadiusX} ry={catchlightRadiusY}
-                  transform={'translate(' + (50 + catchlightOffsetX) + ', ' + (50 + catchlightOffsetY) + ')'}
-                  style={catchlightStyle} />
+                <g className='catchlight-frame' style={{
+                  transform: 'rotate(' + -rotation + 'deg)',
+                  transformOrigin: 'center',
+                  transition: 'transform ' + rotationSpeed + 'ms ' + lensEasing,
+                }}>
+                  <ellipse className='catchlight' {...fillOf(catchlightColor)}
+                    rx={catchlightRadiusX} ry={catchlightRadiusY}
+                    transform={'translate(' + (50 + catchlightOffsetX) + ', ' + (50 + catchlightOffsetY) + ')'}
+                    style={catchlightStyle} />
+                </g>
               ) : null}
             </g>
           </g>
@@ -301,7 +313,6 @@ export const EyePair = (props) => {
     // the pair's own props: everything else is an Eye prop shared by both eyes
     gap = 20,
     eyeRotation = 0,
-    pairRotation = 0,
     leftEye,
     rightEye,
     // shared Eye props the pair has to resolve itself before handing them on
@@ -347,9 +358,13 @@ export const EyePair = (props) => {
         // rotation, which turns them the same way
         rotation={rotation + outwards * eyeRotation}
         rotationSpeed={rotationSpeed}
-        // the gaze is not mirrored: if the pair looks right, both irises do
+        // the gaze is not mirrored: if the pair looks right, both irises do.
+        // The pair's wander reaches its eyes as a position, so none of them runs
+        // a timer of its own unless an override below asks for one: naming
+        // `lensPosition` alone fixes that eye's gaze rather than setting it
+        // wandering, and naming `lensMovement` gives it a wander of its own
         lensPosition={sharesGaze ? pairLensPosition : lensPosition}
-        lensMovement={sharesGaze ? false : lensMovement}
+        lensMovement={false}
         blinking={blinking}
         blinkSpeed={blinkSpeed}
         blinkFrequency={blinkFrequency}
@@ -373,11 +388,6 @@ export const EyePair = (props) => {
         display: 'inline-flex',
         alignItems: 'center',
         columnGap: gapWidth,
-        // pairRotation turns the two eyes as one unit, around the centre of the
-        // pair, on top of whatever each eye does on its own
-        transform: 'rotate(' + pairRotation + 'deg)',
-        transformOrigin: 'center',
-        transition: 'transform ' + rotationSpeed + 'ms ' + lensEasing,
         ...style,
       }}>
       {eye(leftEye, -1)}
