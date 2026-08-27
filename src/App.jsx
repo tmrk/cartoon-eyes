@@ -840,14 +840,21 @@ function App() {
                     </Typography>
                   )}
                 </Stack>
-                <Stack spacing={0.5}>
+                {/* the two axes sit side by side, so the pair reads as one
+                    crosshair; a cramped card drops them back onto two rows */}
+                <Box sx={{
+                  // 24px of column gap clears the two thumbs, each of which
+                  // overhangs its track by half a thumb at the extremes
+                  display: 'grid', columnGap: 3, rowGap: 0.5,
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(128px, 1fr))',
+                }}>
                   <AxisSlider label='Eye position, horizontal' startLabel='Left' endLabel='Right'
                     value={lensX} onChange={setLensAxis(0)}
                     disabled={!stillEye} smooth={config.movement === 'wander'} />
                   <AxisSlider label='Eye position, vertical' startLabel='Up' endLabel='Down'
                     value={lensY} onChange={setLensAxis(1)}
                     disabled={!stillEye} smooth={config.movement === 'wander'} />
-                </Stack>
+                </Box>
               </Box>
               <SwitchControl label='Blinking' checked={config.blinking} onChange={set('blinking')} />
               <SwitchControl label='Blink squeeze' checked={config.blinkSqueeze} onChange={set('blinkSqueeze')}
