@@ -302,6 +302,20 @@ export const Eye = (props) => {
   );
 };
 
+// a sum of scaled CSS lengths: all-numeric stays a number, so React writes it
+// as px, and anything else (a percentage, a var) becomes one calc()
+const lengthSum = (terms) => {
+  if (terms.every(([length]) => typeof length === 'number')) {
+    return terms.reduce((total, [length, factor]) => total + length * factor, 0);
+  }
+  return terms.reduce((expression, [length, factor]) => expression
+    + (factor < 0 ? ' - ' : ' + ')
+    + ((typeof length === 'number')
+      ? Math.abs(length * factor) + 'px'
+      : '(' + length + ') * ' + Math.abs(factor)),
+  'calc(0px') + ')';
+};
+
 // an override that names any of these takes that eye off the pair's shared
 // clock, so it keeps its own gaze or its own blink
 const gazeProps = ['lensPosition', 'lensMovement'];
@@ -343,8 +357,10 @@ export const EyePair = (props) => {
 
   // one eye of the pair: the shared props, its own half of the mirrored eye
   // rotation and the pair's gaze and blink - all of which its override replaces
-  const eye = (override, outwards) => {
-    const own = override || {};
+  const eye = (override, outwards, offset) => {
+    // the pair sets the gap as a margin on the second eye, so an override's own
+    // style is merged rather than dropped by the spread below
+    const { style: ownStyle, ...own } = override || {};
     const sharesGaze = !gazeProps.some((prop) => prop in own);
     const sharesBlink = !blinkProps.some((prop) => prop in own);
     return (
@@ -370,16 +386,26 @@ export const EyePair = (props) => {
         blinkFrequency={blinkFrequency}
         blinkClosed={(sharesBlink && blinking) ? pairBlinkClosed : undefined}
         {...own}
+        style={(offset === undefined) ? ownStyle : { marginInlineStart: offset, ...ownStyle }}
       />
     );
   };
 
-  // the gap is a share of one eye's nominal size rather than a fixed length, so
-  // the pair keeps its proportions however big it is drawn
-  const gapRatio = Math.max(0, gap) / 100;
-  const gapWidth = (typeof width === 'number')
-    ? width * gapRatio
-    : 'calc(' + width + ' * ' + gapRatio + ')';
+  // The gap is a share of one eye's nominal size rather than a fixed length, so
+  // the pair keeps its proportions however big it is drawn - and it is measured
+  // between the eyes themselves, not between their drawing areas. A sclera
+  // narrower than its box leaves slack down the inner side of each eye; that
+  // slack comes off the gap, so `gap={0}` really does put the two eyes side by
+  // side whatever `scleraWidth` is. It leaves a negative length where the slack
+  // is wider than the gap, which is why it is set as a margin on the second eye
+  // rather than as the flex `column-gap` (a gap can never be negative).
+  const eyeWidth = (own) => (own && (own.width ?? own.size)) ?? width;
+  const eyeSlack = (own) => (100 - ((own && own.scleraWidth) ?? shared.scleraWidth ?? 100)) / 200;
+  const gapWidth = lengthSum([
+    [width, Math.max(0, gap) / 100],
+    [eyeWidth(leftEye), -eyeSlack(leftEye)],
+    [eyeWidth(rightEye), -eyeSlack(rightEye)],
+  ].filter(([, factor]) => factor !== 0));
 
   return (
     <div className={className ? 'cartoon-eye-pair ' + className : 'cartoon-eye-pair'}
@@ -387,11 +413,10 @@ export const EyePair = (props) => {
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        columnGap: gapWidth,
         ...style,
       }}>
       {eye(leftEye, -1)}
-      {eye(rightEye, 1)}
+      {eye(rightEye, 1, gapWidth)}
     </div>
   );
 };

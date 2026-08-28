@@ -30,6 +30,13 @@ const NIGHT = '#3A3150'; // the code drawer's bar; its panel is INK
 const DOTS = 'radial-gradient(#E9DCC5 1.5px, transparent 1.5px)';
 const STAGE_DOTS = 'radial-gradient(rgba(41,34,58,0.12) 2px, transparent 2px)';
 
+// The panels are the round-cornered stickers, but the things you press and type
+// in are rounded rectangles rather than pills: RADIUS is that corner, in px,
+// and the two pads take PAD_RADIUS so their corners stay corners the dot can
+// actually reach.
+const RADIUS = 12;
+const PAD_RADIUS = 5;
+
 const theme = createTheme({
   palette: {
     mode: 'light',
@@ -61,6 +68,7 @@ const theme = createTheme({
     MuiButton: {
       styleOverrides: {
         root: {
+          borderRadius: RADIUS,
           border: `2.5px solid ${INK}`,
           boxShadow: `2px 2px 0 ${INK}`,
           '&:hover': { boxShadow: `3px 3px 0 ${INK}`, transform: 'translate(-1px, -1px)' },
@@ -81,9 +89,17 @@ const theme = createTheme({
         track: { height: 6, border: 'none' },
       },
     },
+    MuiToggleButtonGroup: {
+      styleOverrides: {
+        root: { borderRadius: RADIUS },
+        firstButton: { borderTopLeftRadius: RADIUS - 2, borderBottomLeftRadius: RADIUS - 2 },
+        lastButton: { borderTopRightRadius: RADIUS - 2, borderBottomRightRadius: RADIUS - 2 },
+      },
+    },
     MuiToggleButton: {
       styleOverrides: {
         root: {
+          borderRadius: RADIUS - 2,
           fontFamily: "'Fredoka', sans-serif",
           fontWeight: 500,
           textTransform: 'none',
@@ -175,8 +191,11 @@ const randomOf = (values) => values[Math.floor(Math.random() * values.length)];
 const clampAxis = (value) => Math.max(-100, Math.min(100, Math.round(value)));
 
 // how many eye widths a pair spans, gap included: the stage box and each eye's
-// share of it are both measured against this
-const pairSpan = (gap) => 2 + Math.max(0, gap) / 100;
+// share of it are both measured against this. EyePair measures the gap between
+// the eyes rather than between their drawing areas, so the slack a narrow
+// sclera leaves inside each box comes off the span too
+const pairSpan = (config) =>
+  2 + Math.max(0, config.gap) / 100 - (100 - config.scleraWidth) / 100;
 
 // the gaze the odd-eye override pins the right eye to: hard right, so it reads
 // at a glance against a pair that is looking anywhere else
@@ -630,7 +649,7 @@ const PROP_ROWS = [
   { name: 'lensMovement', type: 'bool | ms', def: 'false', desc: 'Let the eye wander on its own; a number sets the interval.' },
   { name: 'rotation', type: 'number', def: '0', desc: 'Tilt in degrees. Everything turns except the catchlight.' },
   { name: 'blinking', type: 'bool | ms', def: 'false', desc: 'Blink on a timer; blinkSpeed and blinkFrequency shape it.' },
-  { name: 'gap', type: 'number', def: '20', desc: 'EyePair only: space between the two, as a % of one eye.' },
+  { name: 'gap', type: 'number', def: '20', desc: 'EyePair only: space between the two eyes themselves, as a % of one eye.' },
   { name: 'rightEye', type: 'EyeProps', def: 'none', desc: 'EyePair only: overrides for one eye, gaze and blink included.' },
 ];
 
@@ -764,7 +783,7 @@ const LinkedSizeControl = ({
   );
   return (
     <Box sx={{
-      border: `2px solid rgba(41,34,58,0.13)`, borderRadius: 3.5,
+      border: `2px solid rgba(41,34,58,0.13)`, borderRadius: `${RADIUS}px`,
       p: dense ? 1.25 : 1.5, backgroundColor: '#FFF9EF', opacity: disabled ? 0.55 : 1,
     }}>
       <Stack direction='row' sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 0.75 }}>
@@ -852,7 +871,7 @@ const ColorControl = ({
           sx={{
             width: alpha ? (dense ? 168 : 158) : (dense ? 148 : 138),
             '& .MuiInputBase-root': {
-              height: dense ? 40 : 32, borderRadius: 999, pl: 0.75, pr: 1,
+              height: dense ? 40 : 32, borderRadius: `${RADIUS}px`, pl: 0.75, pr: 1,
               backgroundColor: PAPER,
             },
             '& .MuiOutlinedInput-notchedOutline': { borderWidth: 2, borderColor: 'rgba(41,34,58,0.35)' },
@@ -937,7 +956,7 @@ const XYPad = ({ label, value, onChange, disabled = false, smooth = false, sx = 
       onPointerDown={onPointerDown} onPointerMove={onPointerMove} onKeyDown={onKeyDown}
       sx={{
         position: 'relative', flex: '0 0 auto',
-        borderRadius: 3.5, border: `2.5px solid ${INK}`, backgroundColor: PAPER,
+        borderRadius: `${PAD_RADIUS}px`, border: `2.5px solid ${INK}`, backgroundColor: PAPER,
         boxShadow: `2px 2px 0 ${INK}`,
         backgroundImage: 'radial-gradient(rgba(41,34,58,0.14) 1.5px, transparent 1.5px)',
         backgroundSize: '13px 13px',
@@ -986,7 +1005,7 @@ const PadControl = ({ label, value, onChange, disabled = false, smooth = false, 
       <Box>
         {heading}
         <XYPad label={label} value={value} onChange={onChange} disabled={disabled} smooth={smooth}
-          sx={{ width: '100%', aspectRatio: '1.7', borderRadius: 4 }} />
+          sx={{ width: '100%', aspectRatio: '1.7' }} />
         {note ? (
           <Typography variant='caption' sx={{ display: 'block', mt: 0.75, color: 'text.secondary', lineHeight: 1.5 }}>
             {note}
@@ -1081,7 +1100,7 @@ const StageEyes = ({ config, lensPosition, lensSpeed = 500 }) => {
   if (config.eyeCount !== 2) return <Eye {...shared} width='100%' height='100%' />;
   return (
     <EyePair {...shared}
-      width={`${(100 / pairSpan(config.gap)).toFixed(3)}%`} height='100%'
+      width={`${(100 / pairSpan(config)).toFixed(3)}%`} height='100%'
       gap={config.gap} eyeRotation={config.eyeRotation}
       rightEye={rightEyeOverride(config)}
       style={{ display: 'flex', width: '100%', height: '100%', justifyContent: 'center' }} />
@@ -1295,6 +1314,27 @@ const GroupNote = ({ children }) => (
   </Typography>
 );
 
+// A quick eased glide to a scroll position. `scrollTo({ behavior: 'smooth' })`
+// would do it, but it is slower than this and it falls back to a jump wherever
+// the platform asks for reduced motion, which is most of the time on a laptop
+// with the setting on. One rAF loop per scroller, cancelled by the next jump.
+const glideTo = (scroller, top, running, duration = 280) => {
+  if (!scroller) return;
+  cancelAnimationFrame(running.current);
+  const from = scroller.scrollTop;
+  const to = Math.max(0, Math.min(top, scroller.scrollHeight - scroller.clientHeight));
+  const distance = to - from;
+  if (Math.abs(distance) < 1) return;
+  const start = performance.now();
+  const step = (now) => {
+    const t = Math.min(1, (now - start) / duration);
+    // ease-out cubic: quick off the mark, settling rather than stopping
+    scroller.scrollTop = from + distance * (1 - Math.pow(1 - t, 3));
+    if (t < 1) running.current = requestAnimationFrame(step);
+  };
+  running.current = requestAnimationFrame(step);
+};
+
 // ---------------------------------------------------------------------------
 // App
 // ---------------------------------------------------------------------------
@@ -1326,7 +1366,7 @@ function App() {
 
   const desktop = useMediaQuery(theme.breakpoints.up('md'));
   const pairMode = config.eyeCount === 2;
-  const span = pairMode ? pairSpan(config.gap) : 1;
+  const span = pairMode ? pairSpan(config) : 1;
 
   const changed = (key) => {
     const now = config[key];
@@ -1621,7 +1661,7 @@ function App() {
     },
     {
       id: 'pair', tab: 'pair', part: 'sclera', title: 'The pair',
-      hint: pairMode ? 'gap is a share of one eye' : 'switch to 2 eyes above the canvas',
+      hint: pairMode ? 'gap is a share of one eye, edge to edge' : 'switch to 2 eyes above the canvas',
       body: pairMode ? (
         <>
           {slider('Gap', 'gap')}
@@ -1662,13 +1702,22 @@ function App() {
   // -------------------------------------------------------------------------
 
   const scrollerRef = useRef(null);
+  const sheetScrollerRef = useRef(null);
+  const glideId = useRef(0);
   const sectionRefs = useRef({});
   const jumpTo = (sectionId, tabId) => {
     setTab(tabId);
     setSheetSection(tabId);
     setSheetStep((step) => (step === 0 ? 1 : step));
     const element = sectionRefs.current[sectionId];
-    scrollerRef.current?.scrollTo?.({ top: Math.max(0, (element?.offsetTop ?? 0) - 6), behavior: 'smooth' });
+    glideTo(scrollerRef.current, (element?.offsetTop ?? 0) - 6, glideId);
+  };
+  // the phone swaps the sheet's contents rather than scrolling through them, so
+  // a chip glides that scroller back to the top of the group it names
+  const showSheetSection = (sectionId) => {
+    setSheetSection(sectionId);
+    setSheetStep((step) => (step === 0 ? 1 : step));
+    glideTo(sheetScrollerRef.current, 0, glideId);
   };
   const onInspectorScroll = () => {
     const scroller = scrollerRef.current;
@@ -1727,7 +1776,7 @@ function App() {
                   position: 'absolute', left: `${chip.chipX}%`, top: `${chip.chipY}%`,
                   transform: chip.side === 'L' ? 'translate(-100%, -50%)' : 'translate(0, -50%)',
                   font: 'inherit', fontFamily: "'Fredoka', sans-serif", fontWeight: 500, fontSize: 11.5,
-                  px: 1.1, py: '2px', borderRadius: 999, whiteSpace: 'nowrap', cursor: 'pointer',
+                  px: 1.1, py: '2px', borderRadius: '8px', whiteSpace: 'nowrap', cursor: 'pointer',
                   border: `2px solid ${chip.on ? INK : 'rgba(41,34,58,0.3)'}`,
                   backgroundColor: hotPart === chip.id ? CORAL : (chip.on ? PAPER : 'rgba(255,253,248,0.6)'),
                   color: hotPart === chip.id ? PAPER : (chip.on ? INK : 'rgba(41,34,58,0.45)'),
@@ -1746,7 +1795,7 @@ function App() {
   const eyeCountToggle = (labels) => (
     <ToggleButtonGroup exclusive size='small' value={config.eyeCount} aria-label='How many eyes'
       onChange={(e, v) => v && set('eyeCount')(v)}
-      sx={{ backgroundColor: PAPER, boxShadow: `2px 2px 0 ${INK}`, borderRadius: 4 }}>
+      sx={{ backgroundColor: PAPER, boxShadow: `2px 2px 0 ${INK}` }}>
       <ToggleButton value={1} sx={{ py: 0.5, px: 1.5 }}>{labels[0]}</ToggleButton>
       <ToggleButton value={2} sx={{ py: 0.5, px: 1.5 }}>{labels[1]}</ToggleButton>
     </ToggleButtonGroup>
@@ -1755,7 +1804,7 @@ function App() {
   const movementToggle = (
     <ToggleButtonGroup exclusive size='small' value={config.movement} aria-label='Movement'
       onChange={(e, v) => v && set('movement')(v)}
-      sx={{ backgroundColor: PAPER, boxShadow: `2px 2px 0 ${INK}`, borderRadius: 4 }}>
+      sx={{ backgroundColor: PAPER, boxShadow: `2px 2px 0 ${INK}` }}>
       <ToggleButton value='wander' sx={{ py: 0.5, px: 1.5 }}>Wander</ToggleButton>
       <ToggleButton value='follow' sx={{ py: 0.5, px: 1.5 }}>Follow</ToggleButton>
       <ToggleButton value='still' sx={{ py: 0.5, px: 1.5 }}>Still</ToggleButton>
@@ -1812,7 +1861,7 @@ function App() {
               The exact SVG on the canvas right now. Paste it anywhere, no React needed.
             </Typography>
             <Button size='small' onClick={grabSvg} sx={{
-              flexShrink: 0, fontSize: 11.5, py: 0.25, px: 1.25, borderRadius: 999,
+              flexShrink: 0, fontSize: 11.5, py: 0.25, px: 1.25,
               backgroundColor: 'transparent', color: CREAM,
               border: '2px solid rgba(255,255,255,0.28)', boxShadow: 'none',
               '&:hover': { backgroundColor: 'rgba(255,255,255,0.09)', boxShadow: 'none', transform: 'none' },
@@ -1985,7 +2034,9 @@ function App() {
           <Typography variant='overline' component='h2' sx={{ px: 1.75, pt: 1.5, pb: 1, fontSize: 11, color: 'text.secondary' }}>
             Start from
           </Typography>
-          <Box sx={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', px: 1.25, pb: 1.25, display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+          {/* the buttons lift by a pixel on hover, so the scroller keeps a
+              little room above the first one for it to lift into */}
+          <Box sx={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', px: 1.25, pt: 0.5, pb: 1.25, display: 'flex', flexDirection: 'column', gap: 0.75 }}>
             {Object.entries(presets).map(([name, presetConfig]) => {
               const active = activePreset === name;
               return (
@@ -1993,7 +2044,7 @@ function App() {
                   onClick={() => replaceConfig(presetConfig)}
                   sx={{
                     display: 'flex', alignItems: 'center', gap: 1, flex: '0 0 auto',
-                    height: 40, px: 1.25, borderRadius: 3.5, cursor: 'pointer', textAlign: 'left',
+                    height: 40, px: 1.25, borderRadius: `${RADIUS}px`, cursor: 'pointer', textAlign: 'left',
                     font: 'inherit', fontFamily: "'Fredoka', sans-serif", fontWeight: 500, fontSize: 13.5,
                     border: `2.5px solid ${active ? INK : 'rgba(41,34,58,0.22)'}`,
                     backgroundColor: active ? CORAL : PAPER,
@@ -2010,7 +2061,7 @@ function App() {
                   }}>
                     <Box sx={{
                       width: presetConfig.eyeCount === 2 ? 28 : 24, display: 'flex', alignItems: 'center',
-                      aspectRatio: presetConfig.eyeCount === 2 ? String(pairSpan(presetConfig.gap)) : '1',
+                      aspectRatio: presetConfig.eyeCount === 2 ? String(pairSpan(presetConfig)) : '1',
                     }}>
                       <StageEyes config={{ ...presetConfig, blinking: false }} lensPosition={[0, 0]} lensSpeed={0} />
                     </Box>
@@ -2050,7 +2101,7 @@ function App() {
                 <Button size='small' variant='contained' disableElevation disabled={pairMode}
                   aria-pressed={showLabels} onClick={() => setShowLabels((v) => !v)}
                   sx={{
-                    borderRadius: 4, py: 0.5, px: 1.5,
+                    py: 0.5, px: 1.5,
                     backgroundColor: showLabels ? CORAL : PAPER,
                     color: showLabels ? PAPER : INK,
                     '&:hover': { backgroundColor: showLabels ? CORAL : TINT },
@@ -2149,7 +2200,7 @@ function App() {
                 onClick={() => setDrawerOpen((v) => !v)}
                 sx={{
                   width: 28, height: 28, p: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  borderRadius: 2.5, backgroundColor: '#4C4169', color: CREAM,
+                  borderRadius: '10px', backgroundColor: '#4C4169', color: CREAM,
                   border: '2.5px solid #17121F', cursor: 'pointer',
                   transition: 'background-color 120ms ease',
                   '&:hover': { backgroundColor: '#5B4E7D' },
@@ -2230,10 +2281,10 @@ function App() {
             const active = sheetSection === entry.id;
             return (
               <Box key={entry.id} component='button' type='button' aria-current={active || undefined}
-                onClick={() => { setSheetSection(entry.id); setSheetStep((s) => (s === 0 ? 1 : s)); }}
+                onClick={() => showSheetSection(entry.id)}
                 sx={{
                   flex: '0 0 auto', font: 'inherit', fontFamily: "'Fredoka', sans-serif", fontSize: 13,
-                  px: 1.6, py: 0.6, borderRadius: 999, cursor: 'pointer',
+                  px: 1.6, py: 0.6, borderRadius: `${RADIUS}px`, cursor: 'pointer',
                   border: `2.5px solid ${INK}`,
                   backgroundColor: active ? CORAL : PAPER, color: active ? PAPER : INK,
                 }}>
@@ -2242,7 +2293,7 @@ function App() {
             );
           })}
         </Box>
-        <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', px: 2, pb: 3 }}>
+        <Box ref={sheetScrollerRef} sx={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', px: 2, pb: 3 }}>
           <DenseContext.Provider value>
             {sheetSection === 'story' ? <Box sx={{ pt: 1 }}>{story}</Box> : null}
 
@@ -2256,7 +2307,7 @@ function App() {
                       onClick={() => setCodeTab(entry.id)}
                       sx={{
                         font: 'inherit', fontFamily: "'Fredoka', sans-serif", fontSize: 12.5,
-                        px: 1.4, py: 0.5, borderRadius: 999, cursor: 'pointer',
+                        px: 1.4, py: 0.5, borderRadius: '10px', cursor: 'pointer',
                         border: `2.5px solid ${INK}`,
                         backgroundColor: codeTab === entry.id ? CORAL : PAPER,
                         color: codeTab === entry.id ? PAPER : INK,
@@ -2317,7 +2368,7 @@ function App() {
             </Stack>
             <Stack direction='row' spacing={1.25} sx={{ alignItems: 'center' }}>
               <Box sx={{
-                px: 1.5, py: 0.6, backgroundColor: INK, color: CREAM, borderRadius: 3.5,
+                px: 1.5, py: 0.6, backgroundColor: INK, color: CREAM, borderRadius: `${RADIUS}px`,
                 fontFamily: "'Fira Code', monospace", fontSize: 12.5, whiteSpace: 'nowrap',
               }}>
                 npm i cartoon-eyes

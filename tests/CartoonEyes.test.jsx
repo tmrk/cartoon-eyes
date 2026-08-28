@@ -520,16 +520,24 @@ describe('EyePair', () => {
   });
 
   it('sets the gap as a share of the nominal eye size', () => {
-    const px = (gap) => {
-      const { container } = render(<EyePair size={200} gap={gap} />);
-      return container.querySelector('.cartoon-eye-pair').style.columnGap;
+    // the gap is set on the second eye, so it can go negative where the sclera
+    // leaves slack inside its box
+    const px = (props) => {
+      const { container } = render(<EyePair size={200} {...props} />);
+      return [...pairOf(container)][1].style.marginInlineStart;
     };
-    expect(px(20)).toBe('40px'); // 20% of 200
-    expect(px(100)).toBe('200px'); // a whole eye between the two
-    expect(px(0)).toBe('0px');
+    expect(px({ gap: 20 })).toBe('40px'); // 20% of 200
+    expect(px({ gap: 100 })).toBe('200px'); // a whole eye between the two
+    expect(px({ gap: 0 })).toBe('0px');
+    // measured between the eyes, not between their boxes: a sclera 80% of its
+    // box leaves 10% of an eye down each inner side, and both come off the gap
+    expect(px({ gap: 20, scleraWidth: 80 })).toBe('0px');
+    expect(px({ gap: 0, scleraWidth: 80 })).toBe('-40px');
+    // an override's own sclera (and its own size) counts for its eye alone
+    expect(px({ gap: 10, scleraWidth: 80, rightEye: { scleraWidth: 100 } })).toBe('0px');
     // ... so a pair sized in any CSS unit keeps the same proportions
     const { container } = render(<EyePair size='10rem' gap={50} />);
-    expect(container.querySelector('.cartoon-eye-pair').style.columnGap).toMatch(/^calc\(/);
+    expect([...pairOf(container)][1].style.marginInlineStart).toMatch(/^calc\(/);
   });
 
   it('mirrors eyeRotation outwards, on top of any shared rotation', () => {

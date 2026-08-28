@@ -156,8 +156,11 @@ export interface EyeProps {
 export interface EyePairProps extends EyeProps {
   /**
    * Space between the two eyes as a percentage of one eye's nominal size, so the
-   * pair keeps its proportions at any size: `0` sets the two drawing areas side
-   * by side, `100` leaves a whole eye's worth of space between them. Default 20.
+   * pair keeps its proportions at any size. It is measured between the eyes
+   * themselves rather than their drawing areas, so the slack a sclera narrower
+   * than its box leaves down each inner side comes off it: `0` sets the two eyes
+   * side by side whatever `scleraWidth` is, `100` leaves a whole eye's worth of
+   * space between them. Default 20.
    */
   gap?: number;
   /**

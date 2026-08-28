@@ -210,7 +210,7 @@ is inherited from the shared clock it left, so the gaze reads exactly as written
 
 | Prop | Type | Default | Description |
 | --- | --- | --- | --- |
-| `gap` | number | `20` | Space between the eyes as a % of one eye's nominal size, so the proportions hold at any size: `0` sets the two drawing areas side by side, `100` leaves a whole eye between them |
+| `gap` | number | `20` | Space between the eyes as a % of one eye's nominal size, so the proportions hold at any size. It is measured between the eyes themselves, not their drawing areas: `0` sets the two side by side whatever `scleraWidth` is, `100` leaves a whole eye between them |
 | `eyeRotation` | number | `0` | Mirrored tilt in degrees, positive turning the eyes outwards |
 | `leftEye`, `rightEye` | `EyeProps` | - | Props for one eye, overriding the shared ones |
 | `size`, `width`, `height` | number \| string | `100` | The nominal size of **one** eye, which `gap` is measured against |
@@ -219,7 +219,9 @@ is inherited from the shared clock it left, so the gaze reads exactly as written
 | every other `Eye` prop | | | Shared by both eyes |
 
 The eyes sit in an inline flex wrapper with the class `cartoon-eye-pair`, so a
-pair flows like an image and can be placed with plain CSS.
+pair flows like an image and can be placed with plain CSS. The gap itself is an
+inline-start margin on the second eye rather than the wrapper's `column-gap`,
+because a narrow sclera can make it a negative length.
 
 ## Recipes
 
@@ -508,6 +510,17 @@ rendering and hydration work as expected; animation starts on the client.
 - **Removed:** `pairRotation`. Rotate the pair with CSS on the wrapper (or
   whatever contains it) if you need it; `rotation` and `eyeRotation` are
   unchanged. An old `pairRotation` prop is ignored rather than throwing.
+
+### v3.1
+
+- **Changed:** `EyePair` measures `gap` between the eyes themselves rather than
+  between their drawing areas. A sclera narrower than its box leaves slack down
+  the inner side of each eye, and that slack now comes off the gap, so `gap={0}`
+  really does set the two eyes side by side whatever `scleraWidth` is. A pair
+  drawn with the default full-width sclera is unchanged; one with a narrower
+  sclera now sits closer together, so widen `gap` to taste. The gap is set as an
+  inline-start margin on the second eye rather than as the wrapper's
+  `column-gap`, since it can now be a negative length.
 
 ## Changes in v2
 
